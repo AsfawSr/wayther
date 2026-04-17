@@ -7,6 +7,7 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - High-accuracy geolocation tracking via `watchPosition`
 - 15/30/60 minute projected coordinates from speed + heading
 - Destination-based route forecasting using OSRM with route ETA checkpoints (15/30/60 min)
+- From->To planning mode with optional explicit origin coordinates
 - Backend weather proxy endpoints: `GET /api/weather/current` and `GET /api/weather/future`
 - Backend route proxy endpoint: `GET /api/route`
 - Weather mapping: clear, partly cloudy, fog, rain, snow
@@ -37,5 +38,6 @@ Open `http://localhost:8080` in your browser.
 - Geolocation usually requires `https` or `localhost`.
 - If heading is unavailable in manual mode, the app prompts for heading before projecting future points.
 - You can click the map to prefill destination coordinates, then use `Plan Route`.
+- If origin is left blank, the app uses your current/live manual location as the route start.
 - OSRM calls are proxied through `/api/route`; if route fetch fails, the app falls back to heading-based forecasting.
 

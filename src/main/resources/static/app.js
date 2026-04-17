@@ -23,6 +23,7 @@ const state = {
     heading: null
   },
   route: {
+    originOverride: null,
     destination: null,
     geometry: [],
     cumulativeDistancesM: [],
@@ -47,6 +48,8 @@ const el = {
   retryGeoBtn: document.getElementById("retryGeoBtn"),
   destinationForm: document.getElementById("destinationForm"),
   clearRouteBtn: document.getElementById("clearRouteBtn"),
+  originLat: document.getElementById("originLat"),
+  originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
   destLon: document.getElementById("destLon"),
   manualLat: document.getElementById("manualLat"),
@@ -93,12 +96,27 @@ function bindDestinationForm() {
   el.destinationForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
+    const originLatRaw = (el.originLat.value || "").trim();
+    const originLonRaw = (el.originLon.value || "").trim();
     const destLat = Number(el.destLat.value);
     const destLon = Number(el.destLon.value);
 
     if (!Number.isFinite(destLat) || !Number.isFinite(destLon)) {
       setRouteStatus("Please enter a valid destination latitude and longitude.");
       return;
+    }
+
+    const hasOriginInput = originLatRaw !== "" || originLonRaw !== "";
+    if (hasOriginInput) {
+      const originLat = Number(originLatRaw);
+      const originLon = Number(originLonRaw);
+      if (!Number.isFinite(originLat) || !Number.isFinite(originLon)) {
+        setRouteStatus("If you provide origin, both origin latitude and longitude must be valid numbers.");
+        return;
+      }
+      state.route.originOverride = { lat: originLat, lon: originLon };
+    } else {
+      state.route.originOverride = null;
     }
 
     state.route.destination = { lat: destLat, lon: destLon };
@@ -303,6 +321,10 @@ function routeNeedsRefresh() {
     return true;
   }
 
+  if (state.route.originOverride) {
+    return false;
+  }
+
   if (!state.route.originAtFetch) {
     return true;
   }
@@ -322,16 +344,22 @@ async function planRouteFromCurrentLocation(userInitiated) {
     return false;
   }
 
-  if (state.current.lat == null || state.current.lon == null) {
+  const origin = state.route.originOverride || (
+    state.current.lat != null && state.current.lon != null
+      ? { lat: state.current.lat, lon: state.current.lon }
+      : null
+  );
+
+  if (!origin) {
     if (userInitiated) {
-      setRouteStatus("Current location is not available yet. Allow geolocation or use manual input first.");
+      setRouteStatus("Origin is not available yet. Enter origin coordinates or allow geolocation/manual location first.");
     }
     return false;
   }
 
   try {
     const route = await fetchOsrmRoute(
-      { lat: state.current.lat, lon: state.current.lon },
+      origin,
       state.route.destination
     );
 
@@ -339,7 +367,7 @@ async function planRouteFromCurrentLocation(userInitiated) {
     state.route.totalDurationSec = route.totalDurationSec;
     state.route.totalDistanceM = route.totalDistanceM;
     state.route.cumulativeDistancesM = buildCumulativeDistances(route.geometry);
-    state.route.originAtFetch = { lat: state.current.lat, lon: state.current.lon };
+    state.route.originAtFetch = origin;
     state.route.lastFetchedAt = Date.now();
 
     renderRouteBase();
@@ -357,6 +385,7 @@ async function planRouteFromCurrentLocation(userInitiated) {
 }
 
 function clearRoutePlan() {
+  state.route.originOverride = null;
   state.route.destination = null;
   state.route.geometry = [];
   state.route.cumulativeDistancesM = [];
@@ -398,8 +427,13 @@ function renderRouteRiskSegments(predictions) {
     return;
   }
 
+  const startPoint = getRouteStartPoint();
+  if (!startPoint) {
+    return;
+  }
+
   const checkpoints = [
-    { lat: state.current.lat, lon: state.current.lon },
+    startPoint,
     ...predictions.map((p) => ({ lat: p.lat, lon: p.lon }))
   ];
 
@@ -419,6 +453,16 @@ function renderRouteRiskSegments(predictions) {
 
     state.routeRiskLayers.push(layer);
   }
+}
+
+function getRouteStartPoint() {
+  if (state.route.originOverride) {
+    return state.route.originOverride;
+  }
+  if (state.current.lat != null && state.current.lon != null) {
+    return { lat: state.current.lat, lon: state.current.lon };
+  }
+  return null;
 }
 
 function clearRouteRiskLayers() {
