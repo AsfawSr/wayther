@@ -38,6 +38,13 @@
           <p class="flex justify-between"><span>Speed (m/s)</span><span id="speedMs">0.00</span></p>
           <p class="flex justify-between"><span>Heading</span><span id="headingText">N/A</span></p>
           <p class="text-slate-400" id="statusText">Waiting for location...</p>
+          <button
+            id="retryGeoBtn"
+            type="button"
+            class="mt-2 w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-4 py-2 text-sm font-semibold"
+          >
+            Retry Geolocation
+          </button>
         </div>
       </article>
 
@@ -86,29 +93,6 @@
       <div id="timeline" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
     </section>
 
-    <section id="manualSection" class="hidden bg-slate-900 border border-amber-700 rounded-xl p-4">
-      <h2 class="text-lg font-semibold mb-2 text-amber-300">
-        <i class="fa-solid fa-location-dot mr-1"></i> Manual Location Input
-      </h2>
-      <p class="text-sm text-slate-300 mb-3">Location is unavailable. Enter details manually.</p>
-      <form id="manualForm" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <input id="manualLat" type="number" step="any" placeholder="Latitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
-        <input id="manualLon" type="number" step="any" placeholder="Longitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
-        <input id="manualSpeed" type="number" step="any" min="0" placeholder="Speed km/h" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
-        <input id="manualHeading" type="number" step="any" min="0" max="359" placeholder="Heading deg" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
-        <button class="bg-cyan-600 hover:bg-cyan-500 transition rounded px-4 py-2 font-semibold" type="submit">
-          Update Path
-        </button>
-      </form>
-      <button
-        id="retryGeoBtn"
-        type="button"
-        class="mt-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-4 py-2 text-sm font-semibold"
-      >
-        Retry Geolocation
-      </button>
-      <p id="manualHint" class="mt-3 text-xs text-amber-200 hidden"></p>
-    </section>
   </main>
 
   <script

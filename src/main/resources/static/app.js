@@ -12,7 +12,6 @@ const state = {
   routeBaseLayer: null,
   routeRiskLayers: [],
   inFlight: false,
-  manualMode: false,
   watchId: null,
   intervalId: null,
   last: { speedMs: null, heading: null },
@@ -42,9 +41,6 @@ const el = {
   routeStatus: document.getElementById("routeStatus"),
   timeline: document.getElementById("timeline"),
   vibeCheck: document.getElementById("vibeCheck"),
-  manualSection: document.getElementById("manualSection"),
-  manualHint: document.getElementById("manualHint"),
-  manualForm: document.getElementById("manualForm"),
   retryGeoBtn: document.getElementById("retryGeoBtn"),
   destinationForm: document.getElementById("destinationForm"),
   clearRouteBtn: document.getElementById("clearRouteBtn"),
@@ -52,18 +48,13 @@ const el = {
   originLat: document.getElementById("originLat"),
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
-  destLon: document.getElementById("destLon"),
-  manualLat: document.getElementById("manualLat"),
-  manualLon: document.getElementById("manualLon"),
-  manualSpeed: document.getElementById("manualSpeed"),
-  manualHeading: document.getElementById("manualHeading")
+  destLon: document.getElementById("destLon")
 };
 
 init();
 
 function init() {
   initMap();
-  bindManualForm();
   bindRetryGeolocation();
   bindDestinationForm();
   startGeoWatch();
@@ -96,8 +87,6 @@ function initMap() {
 
 function bindRetryGeolocation() {
   el.retryGeoBtn.addEventListener("click", () => {
-    state.manualMode = false;
-    hideManualHint();
     setStatus("Retrying geolocation...");
     startGeoWatch();
   });
@@ -146,43 +135,9 @@ function bindDestinationForm() {
   });
 }
 
-function bindManualForm() {
-  el.manualForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const lat = Number(el.manualLat.value);
-    const lon = Number(el.manualLon.value);
-    const speedKmh = Number(el.manualSpeed.value || 0);
-    const headingRaw = el.manualHeading.value;
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      setStatus("Please enter valid latitude and longitude.");
-      return;
-    }
-
-    state.manualMode = true;
-    state.current.lat = lat;
-    state.current.lon = lon;
-    state.current.speedMs = Math.max(0, speedKmh / 3.6);
-
-    if (headingRaw === "") {
-      state.current.heading = null;
-      showManualHint("Heading missing: add heading to enable future path projections.");
-    } else {
-      state.current.heading = normalizeHeading(Number(headingRaw));
-      hideManualHint();
-    }
-
-    renderLiveStatus();
-    updateCurrentMarker();
-    await updateEverything();
-    setStatus("Manual location updated.");
-  });
-}
-
 function startGeoWatch() {
   if (!("geolocation" in navigator)) {
-    enableManualMode("Geolocation is not supported by this browser.");
+    setStatus("Geolocation is not supported. Use From->To route planning with origin and destination.");
     return;
   }
 
@@ -199,12 +154,6 @@ function startGeoWatch() {
 }
 
 function onPosition(position) {
-  if (state.manualMode) {
-    return;
-  }
-
-  el.manualSection.classList.add("hidden");
-
   const coords = position.coords;
   state.current.lat = coords.latitude;
   state.current.lon = coords.longitude;
@@ -232,20 +181,15 @@ function onPosition(position) {
 
 function onPositionError(error) {
   if (error && error.code === 1) {
-    enableManualMode("Geolocation denied. Use manual location input.");
+    setStatus("Geolocation denied. Use route origin/destination fields or Retry Geolocation.");
     return;
   }
-  enableManualMode("Geolocation unavailable. Use manual location input.");
-}
-
-function enableManualMode(message) {
-  el.manualSection.classList.remove("hidden");
-  setStatus(message);
+  setStatus("Geolocation unavailable. Use route origin/destination fields or Retry Geolocation.");
 }
 
 function startScheduledUpdates() {
   state.intervalId = setInterval(() => {
-    if (state.current.lat == null || state.current.lon == null) {
+    if (!hasActiveOriginPoint()) {
       return;
     }
     updateEverything();
@@ -256,7 +200,9 @@ async function updateEverything() {
   if (state.inFlight) {
     return;
   }
-  if (state.current.lat == null || state.current.lon == null) {
+
+  const activeOrigin = getActiveOriginPoint();
+  if (!activeOrigin) {
     return;
   }
 
@@ -264,7 +210,7 @@ async function updateEverything() {
   setStatus("Refreshing weather path...");
 
   try {
-    const current = await fetchCurrentWeather(state.current.lat, state.current.lon);
+    const current = await fetchCurrentWeather(activeOrigin.lat, activeOrigin.lon);
 
     let predictions = [];
     let usedRoute = false;
@@ -275,16 +221,9 @@ async function updateEverything() {
     }
 
     if (!predictions.length) {
-      if (state.current.heading == null) {
-        if (state.manualMode) {
-          showManualHint("Heading missing: add heading to project 15/30/60 minute path.");
-        }
-      } else {
-        hideManualHint();
+      if (hasLiveHeadingProjection()) {
         predictions = await Promise.all(FUTURE_MINUTES.map((minutes) => buildHeadingPrediction(minutes)));
       }
-    } else {
-      hideManualHint();
     }
 
     renderTimeline(current, predictions);
@@ -313,7 +252,7 @@ async function ensureFreshRoute() {
   if (!state.route.destination) {
     return false;
   }
-  if (state.current.lat == null || state.current.lon == null) {
+  if (!getRouteStartPoint()) {
     return false;
   }
   if (!routeNeedsRefresh()) {
@@ -337,6 +276,10 @@ function routeNeedsRefresh() {
   }
 
   if (!state.route.originAtFetch) {
+    return true;
+  }
+
+  if (state.current.lat == null || state.current.lon == null) {
     return true;
   }
 
@@ -474,6 +417,20 @@ function getRouteStartPoint() {
     return { lat: state.current.lat, lon: state.current.lon };
   }
   return null;
+}
+
+function getActiveOriginPoint() {
+  return getRouteStartPoint();
+}
+
+function hasActiveOriginPoint() {
+  return getActiveOriginPoint() != null;
+}
+
+function hasLiveHeadingProjection() {
+  return state.current.lat != null &&
+    state.current.lon != null &&
+    state.current.heading != null;
 }
 
 function clearRouteRiskLayers() {
@@ -833,12 +790,3 @@ function setRouteStatus(text) {
   el.routeStatus.textContent = text;
 }
 
-function showManualHint(text) {
-  el.manualHint.classList.remove("hidden");
-  el.manualHint.textContent = text;
-}
-
-function hideManualHint() {
-  el.manualHint.classList.add("hidden");
-  el.manualHint.textContent = "";
-}

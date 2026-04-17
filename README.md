@@ -13,7 +13,7 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - Weather mapping: clear, partly cloudy, fog, rain, snow
 - Vibe check warning for rain/snow/fog risk over 40%
 - In-memory server cache for forecast requests (30s TTL)
-- Manual location fallback when geolocation is denied/unavailable
+- Retry geolocation plus From->To route planning fallback when geolocation is denied/unavailable
 
 ## Project Structure
 - `src/main/java/com/asfaw/Main.java` - Spring Boot entry point
@@ -36,7 +36,7 @@ Open `http://localhost:8080` in your browser.
 
 ## Notes
 - Geolocation usually requires `https` or `localhost`.
-- If heading is unavailable in manual mode, the app prompts for heading before projecting future points.
+- If geolocation is unavailable, you can still plan forecasts by entering origin and destination coordinates.
 - You can click the map to prefill destination coordinates, then use `Plan Route`.
 - Use the "Map click fills" selector to choose whether clicks set destination or origin coordinates.
 - If origin is left blank, the app uses your current/live manual location as the route start.
