@@ -527,9 +527,10 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 
 async function fetchOsrmRoute(origin, destination) {
   const url =
-    `https://router.project-osrm.org/route/v1/driving/${encodeURIComponent(origin.lon)},${encodeURIComponent(origin.lat)};` +
-    `${encodeURIComponent(destination.lon)},${encodeURIComponent(destination.lat)}` +
-    "?overview=full&geometries=geojson";
+    `/api/route?originLat=${encodeURIComponent(origin.lat)}` +
+    `&originLon=${encodeURIComponent(origin.lon)}` +
+    `&destLat=${encodeURIComponent(destination.lat)}` +
+    `&destLon=${encodeURIComponent(destination.lon)}`;
 
   const data = await fetchJson(url);
   const route = data.routes && data.routes[0];

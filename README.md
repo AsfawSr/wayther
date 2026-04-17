@@ -8,6 +8,7 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - 15/30/60 minute projected coordinates from speed + heading
 - Destination-based route forecasting using OSRM with route ETA checkpoints (15/30/60 min)
 - Backend weather proxy endpoints: `GET /api/weather/current` and `GET /api/weather/future`
+- Backend route proxy endpoint: `GET /api/route`
 - Weather mapping: clear, partly cloudy, fog, rain, snow
 - Vibe check warning for rain/snow/fog risk over 40%
 - In-memory server cache for forecast requests (30s TTL)
@@ -18,6 +19,9 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - `src/main/java/com/asfaw/weather/WeatherController.java` - backend weather API endpoints
 - `src/main/java/com/asfaw/weather/WeatherService.java` - cache + orchestration
 - `src/main/java/com/asfaw/weather/OpenMeteoClient.java` - Open-Meteo integration
+- `src/main/java/com/asfaw/route/RouteController.java` - backend route API endpoint
+- `src/main/java/com/asfaw/route/RouteService.java` - OSRM route cache + orchestration
+- `src/main/java/com/asfaw/route/OsrmClient.java` - OSRM integration
 - `src/main/resources/static/index.html` - app layout
 - `src/main/resources/static/styles.css` - marker + warning animations
 - `src/main/resources/static/app.js` - geolocation, projection, backend API calls, UI updates
@@ -33,5 +37,5 @@ Open `http://localhost:8080` in your browser.
 - Geolocation usually requires `https` or `localhost`.
 - If heading is unavailable in manual mode, the app prompts for heading before projecting future points.
 - You can click the map to prefill destination coordinates, then use `Plan Route`.
-- OSRM public routing is used client-side; if route fetch fails, the app falls back to heading-based forecasting.
+- OSRM calls are proxied through `/api/route`; if route fetch fails, the app falls back to heading-based forecasting.
 
