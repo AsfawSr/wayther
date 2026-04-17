@@ -57,6 +57,7 @@ function init() {
   initMap();
   bindRetryGeolocation();
   bindDestinationForm();
+  renderTimelinePlaceholder("Enable geolocation or enter origin/destination to see 15/30/60 minute forecasts.");
   startGeoWatch();
   startScheduledUpdates();
 }
@@ -182,9 +183,11 @@ function onPosition(position) {
 function onPositionError(error) {
   if (error && error.code === 1) {
     setStatus("Geolocation denied. Use route origin/destination fields or Retry Geolocation.");
+    renderTimelinePlaceholder("Location access denied. Enter origin and destination, then plan route to get forecasts.");
     return;
   }
   setStatus("Geolocation unavailable. Use route origin/destination fields or Retry Geolocation.");
+  renderTimelinePlaceholder("Location unavailable. Enter origin and destination, then plan route to get forecasts.");
 }
 
 function startScheduledUpdates() {
@@ -203,6 +206,7 @@ async function updateEverything() {
 
   const activeOrigin = getActiveOriginPoint();
   if (!activeOrigin) {
+    renderTimelinePlaceholder("No active origin yet. Add origin/destination or allow geolocation to start forecasting.");
     return;
   }
 
@@ -234,6 +238,7 @@ async function updateEverything() {
   } catch (error) {
     console.error(error);
     setStatus("Weather update failed. Retrying shortly.");
+    renderTimelinePlaceholder("Weather data is temporarily unavailable. We will retry automatically.");
   } finally {
     state.inFlight = false;
   }
@@ -596,10 +601,9 @@ function renderTimeline(current, predictions) {
   const currentCondition = mapWeatherCode(current.weatherCode);
 
   if (!predictions.length) {
-    el.timeline.innerHTML =
-      `<article class="rounded-lg bg-slate-800 border border-slate-700 p-3 md:col-span-3">` +
-      `<p class="text-sm text-slate-300">Current condition: ${currentCondition}. Add heading or destination route to render future predictions.</p>` +
-      `</article>`;
+    renderTimelinePlaceholder(
+      `Current condition: ${currentCondition}. Add heading or destination route to render future predictions.`
+    );
     return;
   }
 
@@ -616,6 +620,13 @@ function renderTimeline(current, predictions) {
       `;
     })
     .join("");
+}
+
+function renderTimelinePlaceholder(message) {
+  el.timeline.innerHTML =
+    `<article class="rounded-lg bg-slate-800 border border-slate-700 p-3 md:col-span-3">` +
+    `<p class="text-sm text-slate-300">${message}</p>` +
+    `</article>`;
 }
 
 function renderFutureMarkers(predictions) {
