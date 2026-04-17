@@ -6,17 +6,20 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - Dark Tailwind dashboard with Leaflet dark map
 - High-accuracy geolocation tracking via `watchPosition`
 - 15/30/60 minute projected coordinates from speed + heading
-- Open-Meteo current and hourly forecast integration
+- Backend weather proxy endpoints: `GET /api/weather/current` and `GET /api/weather/future`
 - Weather mapping: clear, partly cloudy, fog, rain, snow
 - Vibe check warning for rain/snow/fog risk over 40%
-- In-memory browser cache for forecast requests (30s TTL)
+- In-memory server cache for forecast requests (30s TTL)
 - Manual location fallback when geolocation is denied/unavailable
 
 ## Project Structure
 - `src/main/java/com/asfaw/Main.java` - Spring Boot entry point
+- `src/main/java/com/asfaw/weather/WeatherController.java` - backend weather API endpoints
+- `src/main/java/com/asfaw/weather/WeatherService.java` - cache + orchestration
+- `src/main/java/com/asfaw/weather/OpenMeteoClient.java` - Open-Meteo integration
 - `src/main/resources/static/index.html` - app layout
 - `src/main/resources/static/styles.css` - marker + warning animations
-- `src/main/resources/static/app.js` - geolocation, projection, API calls, UI updates
+- `src/main/resources/static/app.js` - geolocation, projection, backend API calls, UI updates
 
 ## Run
 ```bash

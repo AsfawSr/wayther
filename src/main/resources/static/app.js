@@ -2,7 +2,6 @@ const FUTURE_MINUTES = [15, 30, 60];
 const UPDATE_INTERVAL_MS = 3000;
 const SPEED_DELTA_MS = 0.5;
 const HEADING_DELTA_DEG = 10;
-const CACHE_TTL_MS = 30000;
 
 const state = {
   map: null,
@@ -12,7 +11,6 @@ const state = {
   manualMode: false,
   watchId: null,
   intervalId: null,
-  cache: new Map(),
   last: { speedMs: null, heading: null },
   current: {
     lat: null,
@@ -213,77 +211,28 @@ async function buildPrediction(minutesAhead) {
 }
 
 async function fetchCurrentWeather(lat, lon) {
-  const roundedLat = roundCoord(lat);
-  const roundedLon = roundCoord(lon);
-  const cacheKey = `current:${roundedLat}:${roundedLon}`;
+  const url =
+    `/api/weather/current?latitude=${encodeURIComponent(lat)}` +
+    `&longitude=${encodeURIComponent(lon)}`;
 
-  return getOrSetCache(cacheKey, async () => {
-    const url =
-      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}` +
-      `&longitude=${encodeURIComponent(lon)}` +
-      "&current=precipitation_probability,weather_code";
-
-    const data = await fetchJson(url);
-    return {
-      precipitationProbability: Number(data.current?.precipitation_probability ?? 0),
-      weatherCode: Number(data.current?.weather_code ?? -1)
-    };
-  });
+  const data = await fetchJson(url);
+  return {
+    precipitationProbability: Number(data.precipitationProbability ?? 0),
+    weatherCode: Number(data.weatherCode ?? -1)
+  };
 }
 
 async function fetchFutureWeather(lat, lon, targetTime) {
-  const hourIso = targetTime.toISOString().slice(0, 13);
-  const roundedLat = roundCoord(lat);
-  const roundedLon = roundCoord(lon);
-  const cacheKey = `future:${roundedLat}:${roundedLon}:${hourIso}`;
+  const url =
+    `/api/weather/future?latitude=${encodeURIComponent(lat)}` +
+    `&longitude=${encodeURIComponent(lon)}` +
+    `&targetIso=${encodeURIComponent(targetTime.toISOString())}`;
 
-  return getOrSetCache(cacheKey, async () => {
-    const url =
-      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}` +
-      `&longitude=${encodeURIComponent(lon)}` +
-      "&hourly=precipitation_probability,weather_code" +
-      "&forecast_days=1&timezone=auto";
-
-    const data = await fetchJson(url);
-    const times = data.hourly?.time ?? [];
-    const probs = data.hourly?.precipitation_probability ?? [];
-    const codes = data.hourly?.weather_code ?? [];
-
-    if (!times.length) {
-      return { precipitationProbability: 0, weatherCode: -1 };
-    }
-
-    const target = targetTime.getTime();
-    let bestIdx = 0;
-    let bestDiff = Number.POSITIVE_INFINITY;
-
-    for (let i = 0; i < times.length; i++) {
-      const t = new Date(times[i]).getTime();
-      const diff = Math.abs(t - target);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
-    }
-
-    return {
-      precipitationProbability: Number(probs[bestIdx] ?? 0),
-      weatherCode: Number(codes[bestIdx] ?? -1)
-    };
-  });
-}
-
-function getOrSetCache(key, producer) {
-  const now = Date.now();
-  const existing = state.cache.get(key);
-  if (existing && existing.expiresAt > now) {
-    return Promise.resolve(existing.value);
-  }
-
-  return producer().then((value) => {
-    state.cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
-    return value;
-  });
+  const data = await fetchJson(url);
+  return {
+    precipitationProbability: Number(data.precipitationProbability ?? 0),
+    weatherCode: Number(data.weatherCode ?? -1)
+  };
 }
 
 function mapWeatherCode(code) {
@@ -450,9 +399,6 @@ function projectCoordinate(latDeg, lonDeg, bearingDeg, distanceKm) {
   };
 }
 
-function roundCoord(value) {
-  return Number(value).toFixed(3);
-}
 
 function normalizeHeading(value) {
   const n = Number.isFinite(value) ? value : 0;
