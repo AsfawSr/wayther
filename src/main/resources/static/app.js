@@ -327,7 +327,7 @@ function renderFutureMarkers(predictions) {
   state.futureMarkers = [];
 
   for (const p of predictions) {
-    const riskClass = riskClassFromProbability(p.precipitationProbability);
+    const riskClass = markerClassForPrediction(p);
     const icon = L.divIcon({
       html: `<div class="future-marker ${riskClass}"></div>`,
       className: "",
@@ -343,7 +343,7 @@ function renderFutureMarkers(predictions) {
 }
 
 function renderVibeCheck(predictions) {
-  el.vibeCheck.classList.remove("warning-good", "warning-alert");
+  el.vibeCheck.classList.remove("warning-good", "warning-alert", "warning-caution");
 
   if (!predictions.length) {
     el.vibeCheck.classList.add("warning-good");
@@ -352,16 +352,25 @@ function renderVibeCheck(predictions) {
     return;
   }
 
-  const risk = predictions.find((p) => {
-    const riskyType = p.condition === "rain" || p.condition === "snow" || p.condition === "fog";
-    return riskyType && p.precipitationProbability > 40;
+  const wetRisk = predictions.find((p) => {
+    const wetType = p.condition === "rain" || p.condition === "snow";
+    return wetType && p.precipitationProbability > 40;
   });
 
-  if (risk) {
+  if (wetRisk) {
     el.vibeCheck.classList.add("warning-alert");
     el.vibeCheck.innerHTML =
       `<i class="fa-solid fa-triangle-exclamation mr-2"></i>` +
-      `Vibe warning: ${risk.condition} risk ${risk.precipitationProbability}% in ${risk.minutesAhead} minutes.`;
+      `Vibe warning: ${wetRisk.condition} risk ${wetRisk.precipitationProbability}% in ${wetRisk.minutesAhead} minutes.`;
+    return;
+  }
+
+  const fogRisk = predictions.find((p) => p.condition === "fog");
+  if (fogRisk) {
+    el.vibeCheck.classList.add("warning-caution");
+    el.vibeCheck.innerHTML =
+      `<i class="fa-solid fa-eye-low-vision mr-2"></i>` +
+      `Visibility warning: fog expected in ${fogRisk.minutesAhead} minutes. Slow down and stay alert.`;
     return;
   }
 
@@ -408,9 +417,13 @@ function angularDifferenceDeg(a, b) {
   return diff > 180 ? 360 - diff : diff;
 }
 
-function riskClassFromProbability(probability) {
-  if (probability > 40) return "future-high";
-  if (probability > 20) return "future-mid";
+function markerClassForPrediction(prediction) {
+  if (prediction.condition === "fog") {
+    return prediction.weatherCode === 48 ? "future-fog-high" : "future-fog";
+  }
+
+  if (prediction.precipitationProbability > 40) return "future-high";
+  if (prediction.precipitationProbability > 20) return "future-mid";
   return "future-low";
 }
 

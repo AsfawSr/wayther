@@ -35,6 +35,14 @@ body {
   background: #ef4444;
 }
 
+.future-fog {
+  background: #a78bfa;
+}
+
+.future-fog-high {
+  background: #7c3aed;
+}
+
 .warning-box {
   transition: all 300ms ease;
 }
@@ -49,6 +57,13 @@ body {
   background: rgba(127, 29, 29, 0.4);
   border: 1px solid rgba(239, 68, 68, 0.85);
   color: #fecaca;
+  animation: vibeShake 420ms ease;
+}
+
+.warning-caution {
+  background: rgba(120, 53, 15, 0.35);
+  border: 1px solid rgba(251, 146, 60, 0.75);
+  color: #fed7aa;
   animation: vibeShake 420ms ease;
 }
 
