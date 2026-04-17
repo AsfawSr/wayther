@@ -38,6 +38,7 @@ Open `http://localhost:8080` in your browser.
 - Geolocation usually requires `https` or `localhost`.
 - If heading is unavailable in manual mode, the app prompts for heading before projecting future points.
 - You can click the map to prefill destination coordinates, then use `Plan Route`.
+- Use the "Map click fills" selector to choose whether clicks set destination or origin coordinates.
 - If origin is left blank, the app uses your current/live manual location as the route start.
 - OSRM calls are proxied through `/api/route`; if route fetch fails, the app falls back to heading-based forecasting.
 

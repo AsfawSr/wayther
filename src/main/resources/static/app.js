@@ -48,6 +48,7 @@ const el = {
   retryGeoBtn: document.getElementById("retryGeoBtn"),
   destinationForm: document.getElementById("destinationForm"),
   clearRouteBtn: document.getElementById("clearRouteBtn"),
+  mapPickTarget: document.getElementById("mapPickTarget"),
   originLat: document.getElementById("originLat"),
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
@@ -77,8 +78,18 @@ function initMap() {
   }).addTo(state.map);
 
   state.map.on("click", (event) => {
-    el.destLat.value = event.latlng.lat.toFixed(6);
-    el.destLon.value = event.latlng.lng.toFixed(6);
+    const lat = event.latlng.lat.toFixed(6);
+    const lon = event.latlng.lng.toFixed(6);
+
+    if (el.mapPickTarget.value === "origin") {
+      el.originLat.value = lat;
+      el.originLon.value = lon;
+      setRouteStatus("Origin selected from map. Click Plan Route to update route forecast.");
+      return;
+    }
+
+    el.destLat.value = lat;
+    el.destLon.value = lon;
     setRouteStatus("Destination selected from map. Click Plan Route to update route forecast.");
   });
 }

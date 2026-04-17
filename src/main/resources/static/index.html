@@ -56,6 +56,13 @@
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <h2 class="text-lg font-semibold mb-3">Destination Route Forecast</h2>
+      <div class="mb-3 flex items-center gap-3 text-sm">
+        <label for="mapPickTarget" class="text-slate-300">Map click fills:</label>
+        <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+          <option value="destination" selected>Destination</option>
+          <option value="origin">Origin</option>
+        </select>
+      </div>
       <form id="destinationForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <input id="originLat" type="number" step="any" placeholder="Origin latitude (optional)" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
         <input id="originLon" type="number" step="any" placeholder="Origin longitude (optional)" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
