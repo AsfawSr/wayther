@@ -226,7 +226,7 @@ async function updateEverything() {
 
     if (!predictions.length) {
       if (hasLiveHeadingProjection()) {
-        predictions = await Promise.all(FUTURE_MINUTES.map((minutes) => buildHeadingPrediction(minutes)));
+        predictions = await buildHeadingPredictionsBatch();
       }
     }
 
@@ -250,7 +250,7 @@ async function buildRoutePredictionsIfPossible() {
     return [];
   }
 
-  return Promise.all(FUTURE_MINUTES.map((minutes) => buildRoutePrediction(minutes)));
+  return buildRoutePredictionsBatch();
 }
 
 async function ensureFreshRoute() {
@@ -445,7 +445,12 @@ function clearRouteRiskLayers() {
   state.routeRiskLayers = [];
 }
 
-async function buildHeadingPrediction(minutesAhead) {
+async function buildHeadingPredictionsBatch() {
+  const checkpoints = FUTURE_MINUTES.map((minutes) => createHeadingCheckpoint(minutes));
+  return hydratePredictionsFromBatch(checkpoints, "bearing");
+}
+
+function createHeadingCheckpoint(minutesAhead) {
   const distanceKm = (state.current.speedMs * minutesAhead * 60) / 1000;
   const projected = projectCoordinate(
     state.current.lat,
@@ -454,37 +459,47 @@ async function buildHeadingPrediction(minutesAhead) {
     distanceKm
   );
 
-  const targetTime = new Date(Date.now() + minutesAhead * 60 * 1000);
-  const future = await fetchFutureWeather(projected.lat, projected.lon, targetTime);
-
   return {
     minutesAhead,
     lat: projected.lat,
     lon: projected.lon,
-    precipitationProbability: future.precipitationProbability,
-    weatherCode: future.weatherCode,
-    condition: mapWeatherCode(future.weatherCode),
-    source: "bearing"
+    targetTime: new Date(Date.now() + minutesAhead * 60 * 1000)
   };
 }
 
-async function buildRoutePrediction(minutesAhead) {
+async function buildRoutePredictionsBatch() {
+  const checkpoints = FUTURE_MINUTES.map((minutes) => createRouteCheckpoint(minutes));
+  return hydratePredictionsFromBatch(checkpoints, "route");
+}
+
+function createRouteCheckpoint(minutesAhead) {
   const sample = sampleRoutePointAtSeconds(minutesAhead * 60);
   const fallback = state.route.destination;
   const point = sample || fallback;
-
-  const targetTime = new Date(Date.now() + minutesAhead * 60 * 1000);
-  const future = await fetchFutureWeather(point.lat, point.lon, targetTime);
 
   return {
     minutesAhead,
     lat: point.lat,
     lon: point.lon,
-    precipitationProbability: future.precipitationProbability,
-    weatherCode: future.weatherCode,
-    condition: mapWeatherCode(future.weatherCode),
-    source: "route"
+    targetTime: new Date(Date.now() + minutesAhead * 60 * 1000)
   };
+}
+
+async function hydratePredictionsFromBatch(checkpoints, source) {
+  const futures = await fetchFutureWeatherBatch(checkpoints);
+
+  return checkpoints.map((checkpoint, index) => {
+    const future = futures[index] || { precipitationProbability: 0, weatherCode: -1 };
+    return {
+      minutesAhead: checkpoint.minutesAhead,
+      lat: checkpoint.lat,
+      lon: checkpoint.lon,
+      precipitationProbability: future.precipitationProbability,
+      weatherCode: future.weatherCode,
+      condition: mapWeatherCode(future.weatherCode),
+      source
+    };
+  });
 }
 
 function sampleRoutePointAtSeconds(targetSeconds) {
@@ -575,17 +590,29 @@ async function fetchCurrentWeather(lat, lon) {
   };
 }
 
-async function fetchFutureWeather(lat, lon, targetTime) {
-  const url =
-    `/api/weather/future?latitude=${encodeURIComponent(lat)}` +
-    `&longitude=${encodeURIComponent(lon)}` +
-    `&targetIso=${encodeURIComponent(targetTime.toISOString())}`;
+async function fetchFutureWeatherBatch(checkpoints) {
+  const body = checkpoints.map((checkpoint) => ({
+    latitude: checkpoint.lat,
+    longitude: checkpoint.lon,
+    targetIso: checkpoint.targetTime.toISOString()
+  }));
 
-  const data = await fetchJson(url);
-  return {
-    precipitationProbability: Number(data.precipitationProbability ?? 0),
-    weatherCode: Number(data.weatherCode ?? -1)
-  };
+  const data = await fetchJson("/api/weather/future/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!Array.isArray(data)) {
+    throw new Error("Unexpected batch weather response shape");
+  }
+
+  return data.map((item) => ({
+    precipitationProbability: Number(item.precipitationProbability ?? 0),
+    weatherCode: Number(item.weatherCode ?? -1)
+  }));
 }
 
 function mapWeatherCode(code) {
@@ -785,8 +812,8 @@ function toDeg(rad) {
   return (rad * 180) / Math.PI;
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
+async function fetchJson(url, options = undefined) {
+  const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`Request failed (${response.status})`);
   }

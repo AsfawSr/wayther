@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,6 +32,16 @@ public class WeatherService {
                 hourBucket.toString()
         );
         return getOrLoad(key, () -> openMeteoClient.fetchFutureNearest(latitude, longitude, targetTime));
+    }
+
+    public List<WeatherSnapshot> getFutureBatch(List<FutureWeatherCheckpoint> checkpoints) {
+        return checkpoints.stream()
+                .map(checkpoint -> getFuture(
+                        checkpoint.latitude(),
+                        checkpoint.longitude(),
+                        checkpoint.targetIso()
+                ))
+                .toList();
     }
 
     private WeatherSnapshot getOrLoad(String key, Loader loader) {

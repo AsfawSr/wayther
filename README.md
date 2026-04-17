@@ -8,11 +8,12 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - 15/30/60 minute projected coordinates from speed + heading
 - Destination-based route forecasting using OSRM with route ETA checkpoints (15/30/60 min)
 - From->To planning mode with optional explicit origin coordinates
-- Backend weather proxy endpoints: `GET /api/weather/current` and `GET /api/weather/future`
+- Backend weather proxy endpoints: `GET /api/weather/current`, `GET /api/weather/future`, and `POST /api/weather/future/batch`
 - Backend route proxy endpoint: `GET /api/route`
 - Weather mapping: clear, partly cloudy, fog, rain, snow
 - Vibe check warning for rain/snow/fog risk over 40%
 - In-memory server cache for forecast requests (30s TTL)
+- Batched 15/30/60 future checkpoint weather lookups in one request
 - Retry geolocation plus From->To route planning fallback when geolocation is denied/unavailable
 
 ## Project Structure
@@ -20,6 +21,7 @@ SkyPath is a single-page app served by Spring Boot that projects your near-futur
 - `src/main/java/com/asfaw/weather/WeatherController.java` - backend weather API endpoints
 - `src/main/java/com/asfaw/weather/WeatherService.java` - cache + orchestration
 - `src/main/java/com/asfaw/weather/OpenMeteoClient.java` - Open-Meteo integration
+- `src/main/java/com/asfaw/weather/FutureWeatherCheckpoint.java` - batch checkpoint request model
 - `src/main/java/com/asfaw/route/RouteController.java` - backend route API endpoint
 - `src/main/java/com/asfaw/route/RouteService.java` - OSRM route cache + orchestration
 - `src/main/java/com/asfaw/route/OsrmClient.java` - OSRM integration
