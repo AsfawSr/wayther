@@ -55,6 +55,23 @@
     </section>
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <h2 class="text-lg font-semibold mb-3">Destination Route Forecast</h2>
+      <form id="destinationForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input id="destLat" type="number" step="any" placeholder="Destination latitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+        <input id="destLon" type="number" step="any" placeholder="Destination longitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
+        <button id="planRouteBtn" class="bg-indigo-600 hover:bg-indigo-500 transition rounded px-4 py-2 font-semibold" type="submit">
+          Plan Route
+        </button>
+        <button id="clearRouteBtn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-4 py-2 font-semibold" type="button">
+          Clear Route
+        </button>
+      </form>
+      <p id="routeStatus" class="text-sm text-slate-300 mt-3">
+        No destination route yet. Set a destination to forecast weather along your route.
+      </p>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <h2 class="text-lg font-semibold mb-3">Timeline (15 / 30 / 60 min)</h2>
       <div id="timeline" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
     </section>

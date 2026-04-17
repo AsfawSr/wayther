@@ -2,11 +2,15 @@ const FUTURE_MINUTES = [15, 30, 60];
 const UPDATE_INTERVAL_MS = 3000;
 const SPEED_DELTA_MS = 0.5;
 const HEADING_DELTA_DEG = 10;
+const ROUTE_REFRESH_MS = 60000;
+const ROUTE_ORIGIN_REFRESH_METERS = 200;
 
 const state = {
   map: null,
   currentMarker: null,
   futureMarkers: [],
+  routeBaseLayer: null,
+  routeRiskLayers: [],
   inFlight: false,
   manualMode: false,
   watchId: null,
@@ -17,6 +21,15 @@ const state = {
     lon: null,
     speedMs: 0,
     heading: null
+  },
+  route: {
+    destination: null,
+    geometry: [],
+    cumulativeDistancesM: [],
+    totalDistanceM: 0,
+    totalDurationSec: 0,
+    originAtFetch: null,
+    lastFetchedAt: 0
   }
 };
 
@@ -25,12 +38,17 @@ const el = {
   speedMs: document.getElementById("speedMs"),
   headingText: document.getElementById("headingText"),
   statusText: document.getElementById("statusText"),
+  routeStatus: document.getElementById("routeStatus"),
   timeline: document.getElementById("timeline"),
   vibeCheck: document.getElementById("vibeCheck"),
   manualSection: document.getElementById("manualSection"),
   manualHint: document.getElementById("manualHint"),
   manualForm: document.getElementById("manualForm"),
   retryGeoBtn: document.getElementById("retryGeoBtn"),
+  destinationForm: document.getElementById("destinationForm"),
+  clearRouteBtn: document.getElementById("clearRouteBtn"),
+  destLat: document.getElementById("destLat"),
+  destLon: document.getElementById("destLon"),
   manualLat: document.getElementById("manualLat"),
   manualLon: document.getElementById("manualLon"),
   manualSpeed: document.getElementById("manualSpeed"),
@@ -43,8 +61,23 @@ function init() {
   initMap();
   bindManualForm();
   bindRetryGeolocation();
+  bindDestinationForm();
   startGeoWatch();
   startScheduledUpdates();
+}
+
+function initMap() {
+  state.map = L.map("map").setView([9.03, 38.74], 11);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    maxZoom: 19
+  }).addTo(state.map);
+
+  state.map.on("click", (event) => {
+    el.destLat.value = event.latlng.lat.toFixed(6);
+    el.destLon.value = event.latlng.lng.toFixed(6);
+    setRouteStatus("Destination selected from map. Click Plan Route to update route forecast.");
+  });
 }
 
 function bindRetryGeolocation() {
@@ -56,12 +89,32 @@ function bindRetryGeolocation() {
   });
 }
 
-function initMap() {
-  state.map = L.map("map").setView([9.03, 38.74], 11);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    maxZoom: 19
-  }).addTo(state.map);
+function bindDestinationForm() {
+  el.destinationForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const destLat = Number(el.destLat.value);
+    const destLon = Number(el.destLon.value);
+
+    if (!Number.isFinite(destLat) || !Number.isFinite(destLon)) {
+      setRouteStatus("Please enter a valid destination latitude and longitude.");
+      return;
+    }
+
+    state.route.destination = { lat: destLat, lon: destLon };
+    setRouteStatus("Planning route...");
+
+    const ok = await planRouteFromCurrentLocation(true);
+    if (ok) {
+      await updateEverything();
+    }
+  });
+
+  el.clearRouteBtn.addEventListener("click", () => {
+    clearRoutePlan();
+    setRouteStatus("Route cleared. Forecast falls back to heading projection.");
+    updateEverything();
+  });
 }
 
 function bindManualForm() {
@@ -185,18 +238,30 @@ async function updateEverything() {
     const current = await fetchCurrentWeather(state.current.lat, state.current.lon);
 
     let predictions = [];
-    if (state.current.heading == null) {
-      if (state.manualMode) {
-        showManualHint("Heading missing: add heading to project 15/30/60 minute path.");
+    let usedRoute = false;
+
+    if (state.route.destination) {
+      predictions = await buildRoutePredictionsIfPossible();
+      usedRoute = predictions.length > 0;
+    }
+
+    if (!predictions.length) {
+      if (state.current.heading == null) {
+        if (state.manualMode) {
+          showManualHint("Heading missing: add heading to project 15/30/60 minute path.");
+        }
+      } else {
+        hideManualHint();
+        predictions = await Promise.all(FUTURE_MINUTES.map((minutes) => buildHeadingPrediction(minutes)));
       }
     } else {
       hideManualHint();
-      predictions = await Promise.all(FUTURE_MINUTES.map((minutes) => buildPrediction(minutes)));
     }
 
     renderTimeline(current, predictions);
     renderFutureMarkers(predictions);
     renderVibeCheck(predictions);
+    renderRouteRiskSegments(usedRoute ? predictions : []);
     setStatus("Weather path updated.");
   } catch (error) {
     console.error(error);
@@ -206,7 +271,164 @@ async function updateEverything() {
   }
 }
 
-async function buildPrediction(minutesAhead) {
+async function buildRoutePredictionsIfPossible() {
+  const routeReady = await ensureFreshRoute();
+  if (!routeReady) {
+    return [];
+  }
+
+  return Promise.all(FUTURE_MINUTES.map((minutes) => buildRoutePrediction(minutes)));
+}
+
+async function ensureFreshRoute() {
+  if (!state.route.destination) {
+    return false;
+  }
+  if (state.current.lat == null || state.current.lon == null) {
+    return false;
+  }
+  if (!routeNeedsRefresh()) {
+    return true;
+  }
+  return planRouteFromCurrentLocation(false);
+}
+
+function routeNeedsRefresh() {
+  if (!state.route.geometry.length) {
+    return true;
+  }
+
+  const ageMs = Date.now() - state.route.lastFetchedAt;
+  if (ageMs > ROUTE_REFRESH_MS) {
+    return true;
+  }
+
+  if (!state.route.originAtFetch) {
+    return true;
+  }
+
+  const movedMeters = distanceMeters(
+    state.current.lat,
+    state.current.lon,
+    state.route.originAtFetch.lat,
+    state.route.originAtFetch.lon
+  );
+
+  return movedMeters > ROUTE_ORIGIN_REFRESH_METERS;
+}
+
+async function planRouteFromCurrentLocation(userInitiated) {
+  if (!state.route.destination) {
+    return false;
+  }
+
+  if (state.current.lat == null || state.current.lon == null) {
+    if (userInitiated) {
+      setRouteStatus("Current location is not available yet. Allow geolocation or use manual input first.");
+    }
+    return false;
+  }
+
+  try {
+    const route = await fetchOsrmRoute(
+      { lat: state.current.lat, lon: state.current.lon },
+      state.route.destination
+    );
+
+    state.route.geometry = route.geometry;
+    state.route.totalDurationSec = route.totalDurationSec;
+    state.route.totalDistanceM = route.totalDistanceM;
+    state.route.cumulativeDistancesM = buildCumulativeDistances(route.geometry);
+    state.route.originAtFetch = { lat: state.current.lat, lon: state.current.lon };
+    state.route.lastFetchedAt = Date.now();
+
+    renderRouteBase();
+
+    const etaMin = Math.round(route.totalDurationSec / 60);
+    setRouteStatus(`Route ready (${etaMin} min ETA, ${(route.totalDistanceM / 1000).toFixed(1)} km).`);
+    return true;
+  } catch (error) {
+    console.error(error);
+    if (userInitiated) {
+      setRouteStatus("Unable to fetch route right now. Falling back to heading-based forecast.");
+    }
+    return false;
+  }
+}
+
+function clearRoutePlan() {
+  state.route.destination = null;
+  state.route.geometry = [];
+  state.route.cumulativeDistancesM = [];
+  state.route.totalDistanceM = 0;
+  state.route.totalDurationSec = 0;
+  state.route.originAtFetch = null;
+  state.route.lastFetchedAt = 0;
+
+  if (state.routeBaseLayer) {
+    state.map.removeLayer(state.routeBaseLayer);
+    state.routeBaseLayer = null;
+  }
+
+  clearRouteRiskLayers();
+}
+
+function renderRouteBase() {
+  if (state.routeBaseLayer) {
+    state.map.removeLayer(state.routeBaseLayer);
+  }
+
+  if (!state.route.geometry.length) {
+    state.routeBaseLayer = null;
+    return;
+  }
+
+  const latLngs = state.route.geometry.map((p) => [p.lat, p.lon]);
+  state.routeBaseLayer = L.polyline(latLngs, {
+    color: "#38bdf8",
+    weight: 4,
+    opacity: 0.7
+  }).addTo(state.map);
+}
+
+function renderRouteRiskSegments(predictions) {
+  clearRouteRiskLayers();
+
+  if (!state.route.destination || !predictions.length) {
+    return;
+  }
+
+  const checkpoints = [
+    { lat: state.current.lat, lon: state.current.lon },
+    ...predictions.map((p) => ({ lat: p.lat, lon: p.lon }))
+  ];
+
+  for (let i = 1; i < checkpoints.length; i++) {
+    const segmentColor = markerColorForPrediction(predictions[i - 1]);
+    const layer = L.polyline(
+      [
+        [checkpoints[i - 1].lat, checkpoints[i - 1].lon],
+        [checkpoints[i].lat, checkpoints[i].lon]
+      ],
+      {
+        color: segmentColor,
+        weight: 5,
+        opacity: 0.9
+      }
+    ).addTo(state.map);
+
+    state.routeRiskLayers.push(layer);
+  }
+}
+
+function clearRouteRiskLayers() {
+  for (const layer of state.routeRiskLayers) {
+    state.map.removeLayer(layer);
+  }
+  state.routeRiskLayers = [];
+}
+
+async function buildHeadingPrediction(minutesAhead) {
   const distanceKm = (state.current.speedMs * minutesAhead * 60) / 1000;
   const projected = projectCoordinate(
     state.current.lat,
@@ -224,7 +446,102 @@ async function buildPrediction(minutesAhead) {
     lon: projected.lon,
     precipitationProbability: future.precipitationProbability,
     weatherCode: future.weatherCode,
-    condition: mapWeatherCode(future.weatherCode)
+    condition: mapWeatherCode(future.weatherCode),
+    source: "bearing"
+  };
+}
+
+async function buildRoutePrediction(minutesAhead) {
+  const sample = sampleRoutePointAtSeconds(minutesAhead * 60);
+  const fallback = state.route.destination;
+  const point = sample || fallback;
+
+  const targetTime = new Date(Date.now() + minutesAhead * 60 * 1000);
+  const future = await fetchFutureWeather(point.lat, point.lon, targetTime);
+
+  return {
+    minutesAhead,
+    lat: point.lat,
+    lon: point.lon,
+    precipitationProbability: future.precipitationProbability,
+    weatherCode: future.weatherCode,
+    condition: mapWeatherCode(future.weatherCode),
+    source: "route"
+  };
+}
+
+function sampleRoutePointAtSeconds(targetSeconds) {
+  if (state.route.geometry.length < 2) {
+    return null;
+  }
+
+  if (state.route.totalDurationSec <= 0 || state.route.totalDistanceM <= 0) {
+    return state.route.geometry[state.route.geometry.length - 1];
+  }
+
+  const clampedSec = Math.min(targetSeconds, state.route.totalDurationSec);
+  const targetDistance = (clampedSec / state.route.totalDurationSec) * state.route.totalDistanceM;
+
+  const distances = state.route.cumulativeDistancesM;
+  const points = state.route.geometry;
+
+  for (let i = 1; i < distances.length; i++) {
+    if (targetDistance <= distances[i]) {
+      const startDistance = distances[i - 1];
+      const endDistance = distances[i];
+      const ratio = endDistance === startDistance ? 0 : (targetDistance - startDistance) / (endDistance - startDistance);
+      return interpolatePoint(points[i - 1], points[i], ratio);
+    }
+  }
+
+  return points[points.length - 1];
+}
+
+function buildCumulativeDistances(points) {
+  const distances = [0];
+  for (let i = 1; i < points.length; i++) {
+    const segment = distanceMeters(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon);
+    distances.push(distances[i - 1] + segment);
+  }
+  return distances;
+}
+
+function interpolatePoint(a, b, ratio) {
+  return {
+    lat: a.lat + (b.lat - a.lat) * ratio,
+    lon: a.lon + (b.lon - a.lon) * ratio
+  };
+}
+
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const aa =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+  return R * c;
+}
+
+async function fetchOsrmRoute(origin, destination) {
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/${encodeURIComponent(origin.lon)},${encodeURIComponent(origin.lat)};` +
+    `${encodeURIComponent(destination.lon)},${encodeURIComponent(destination.lat)}` +
+    "?overview=full&geometries=geojson";
+
+  const data = await fetchJson(url);
+  const route = data.routes && data.routes[0];
+
+  if (!route || !route.geometry || !Array.isArray(route.geometry.coordinates)) {
+    throw new Error("No route available from OSRM.");
+  }
+
+  return {
+    geometry: route.geometry.coordinates.map((coord) => ({ lon: coord[0], lat: coord[1] })),
+    totalDurationSec: Number(route.duration || 0),
+    totalDistanceM: Number(route.distance || 0)
   };
 }
 
@@ -268,7 +585,7 @@ function renderTimeline(current, predictions) {
   if (!predictions.length) {
     el.timeline.innerHTML =
       `<article class="rounded-lg bg-slate-800 border border-slate-700 p-3 md:col-span-3">` +
-      `<p class="text-sm text-slate-300">Current condition: ${currentCondition}. Add heading to render future predictions.</p>` +
+      `<p class="text-sm text-slate-300">Current condition: ${currentCondition}. Add heading or destination route to render future predictions.</p>` +
       `</article>`;
     return;
   }
@@ -281,6 +598,7 @@ function renderTimeline(current, predictions) {
           <p class="text-sm text-slate-300">Condition: ${p.condition}</p>
           <p class="text-sm text-slate-300">Risk probability: ${p.precipitationProbability}%</p>
           <p class="text-xs text-slate-500">Lat ${p.lat.toFixed(4)}, Lon ${p.lon.toFixed(4)}</p>
+          <p class="text-xs text-slate-500">Mode: ${p.source === "route" ? "destination route" : "heading projection"}</p>
         </article>
       `;
     })
@@ -315,7 +633,7 @@ function renderVibeCheck(predictions) {
   if (!predictions.length) {
     el.vibeCheck.classList.add("warning-good");
     el.vibeCheck.innerHTML =
-      '<i class="fa-solid fa-compass mr-2"></i>Add heading to compute path-aware weather vibe.';
+      '<i class="fa-solid fa-compass mr-2"></i>Add heading or destination to compute path-aware weather vibe.';
     return;
   }
 
@@ -394,6 +712,15 @@ function markerClassForPrediction(prediction) {
   return "future-low";
 }
 
+function markerColorForPrediction(prediction) {
+  const markerClass = markerClassForPrediction(prediction);
+  if (markerClass === "future-high") return "#ef4444";
+  if (markerClass === "future-mid") return "#fb923c";
+  if (markerClass === "future-fog-high") return "#7c3aed";
+  if (markerClass === "future-fog") return "#a78bfa";
+  return "#facc15";
+}
+
 function projectCoordinate(latDeg, lonDeg, bearingDeg, distanceKm) {
   const R = 6371;
   const lat1 = toRad(latDeg);
@@ -416,7 +743,6 @@ function projectCoordinate(latDeg, lonDeg, bearingDeg, distanceKm) {
     lon: normalizeLongitude(toDeg(lon2))
   };
 }
-
 
 function normalizeHeading(value) {
   const n = Number.isFinite(value) ? value : 0;
@@ -447,6 +773,10 @@ function setStatus(text) {
   el.statusText.textContent = text;
 }
 
+function setRouteStatus(text) {
+  el.routeStatus.textContent = text;
+}
+
 function showManualHint(text) {
   el.manualHint.classList.remove("hidden");
   el.manualHint.textContent = text;
@@ -456,4 +786,3 @@ function hideManualHint() {
   el.manualHint.classList.add("hidden");
   el.manualHint.textContent = "";
 }
-
