@@ -30,6 +30,7 @@ const el = {
   manualSection: document.getElementById("manualSection"),
   manualHint: document.getElementById("manualHint"),
   manualForm: document.getElementById("manualForm"),
+  retryGeoBtn: document.getElementById("retryGeoBtn"),
   manualLat: document.getElementById("manualLat"),
   manualLon: document.getElementById("manualLon"),
   manualSpeed: document.getElementById("manualSpeed"),
@@ -41,8 +42,18 @@ init();
 function init() {
   initMap();
   bindManualForm();
+  bindRetryGeolocation();
   startGeoWatch();
   startScheduledUpdates();
+}
+
+function bindRetryGeolocation() {
+  el.retryGeoBtn.addEventListener("click", () => {
+    state.manualMode = false;
+    hideManualHint();
+    setStatus("Retrying geolocation...");
+    startGeoWatch();
+  });
 }
 
 function initMap() {
@@ -93,6 +104,11 @@ function startGeoWatch() {
     return;
   }
 
+  if (state.watchId != null) {
+    navigator.geolocation.clearWatch(state.watchId);
+    state.watchId = null;
+  }
+
   state.watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
     enableHighAccuracy: true,
     timeout: 10000,
@@ -104,6 +120,8 @@ function onPosition(position) {
   if (state.manualMode) {
     return;
   }
+
+  el.manualSection.classList.add("hidden");
 
   const coords = position.coords;
   state.current.lat = coords.latitude;
