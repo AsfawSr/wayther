@@ -30,6 +30,10 @@ const state = {
     totalDurationSec: 0,
     originAtFetch: null,
     lastFetchedAt: 0
+  },
+  geo: {
+    permissionState: "unknown",
+    secureContextOk: true
   }
 };
 
@@ -41,6 +45,7 @@ const el = {
   routeStatus: document.getElementById("routeStatus"),
   timeline: document.getElementById("timeline"),
   vibeCheck: document.getElementById("vibeCheck"),
+  geoHelp: document.getElementById("geoHelp"),
   retryGeoBtn: document.getElementById("retryGeoBtn"),
   destinationForm: document.getElementById("destinationForm"),
   clearRouteBtn: document.getElementById("clearRouteBtn"),
@@ -136,10 +141,40 @@ function bindDestinationForm() {
   });
 }
 
-function startGeoWatch() {
-  if (!("geolocation" in navigator)) {
-    setStatus("Geolocation is not supported. Use From->To route planning with origin and destination.");
+async function startGeoWatch() {
+  const secureContextOk = isSecureLocationContext();
+  state.geo.secureContextOk = secureContextOk;
+
+  if (!secureContextOk) {
+    state.geo.permissionState = "unsupported";
+    setStatus("Geolocation needs HTTPS or localhost. Use origin/destination fields for manual forecasting.");
+    setGeoHelp("Open this app from HTTPS (or localhost). On insecure origins, browsers block location APIs.");
+    renderTimelinePlaceholder("Location is blocked by insecure context. Enter origin and destination to continue.");
     return;
+  }
+
+  if (!("geolocation" in navigator)) {
+    state.geo.permissionState = "unsupported";
+    setStatus("Geolocation is not supported by this browser. Use origin/destination fields.");
+    setGeoHelp("This browser does not expose the Geolocation API. Manual route forecasting remains available.");
+    return;
+  }
+
+  const permissionState = await getLocationPermissionState();
+  state.geo.permissionState = permissionState;
+
+  if (permissionState === "denied") {
+    setStatus("Geolocation denied. Enable location permission in browser/site settings, or use manual origin/destination.");
+    setGeoHelp("Permission is denied. Change site location permission to Allow, then press Retry Geolocation.");
+    renderTimelinePlaceholder("Location permission denied. Enter origin and destination to run forecasts now.");
+    return;
+  }
+
+  if (permissionState === "prompt") {
+    setStatus("Waiting for location permission prompt...");
+    setGeoHelp("Accept the browser location prompt to enable live tracking. You can still use manual coordinates.");
+  } else {
+    setGeoHelp("Live geolocation is active. If this stops, check browser/site permission and OS location settings.");
   }
 
   if (state.watchId != null) {
@@ -167,6 +202,8 @@ function onPosition(position) {
   }
 
   renderLiveStatus();
+  setStatus("Live geolocation active.");
+  setGeoHelp("Receiving live position updates. You can override route origin manually at any time.");
   updateCurrentMarker();
 
   const speedChanged = hasSignificantSpeedChange(state.current.speedMs, state.last.speedMs);
@@ -181,13 +218,38 @@ function onPosition(position) {
 }
 
 function onPositionError(error) {
-  if (error && error.code === 1) {
-    setStatus("Geolocation denied. Use route origin/destination fields or Retry Geolocation.");
+  if (!error) {
+    setStatus("Geolocation unavailable. Use origin/destination fields or Retry Geolocation.");
+    setGeoHelp("Unable to read device location right now. Manual route forecasting is still available.");
+    renderTimelinePlaceholder("Location unavailable. Enter origin and destination, then plan route to get forecasts.");
+    return;
+  }
+
+  if (error.code === 1) {
+    state.geo.permissionState = "denied";
+    setStatus("Geolocation denied. Enable location access and press Retry Geolocation, or continue manually.");
+    setGeoHelp("Location permission is blocked. Allow it in browser/site settings and retry.");
     renderTimelinePlaceholder("Location access denied. Enter origin and destination, then plan route to get forecasts.");
     return;
   }
-  setStatus("Geolocation unavailable. Use route origin/destination fields or Retry Geolocation.");
-  renderTimelinePlaceholder("Location unavailable. Enter origin and destination, then plan route to get forecasts.");
+
+  if (error.code === 2) {
+    setStatus("Position unavailable. Check GPS/network, then Retry Geolocation or use manual origin/destination.");
+    setGeoHelp("Signal is weak or unavailable. Move to a clearer area, enable GPS, or continue in manual mode.");
+    renderTimelinePlaceholder("Position unavailable. Use manual origin and destination if needed.");
+    return;
+  }
+
+  if (error.code === 3) {
+    setStatus("Geolocation timed out. Press Retry Geolocation or use manual origin/destination.");
+    setGeoHelp("Location request timed out. Check connectivity/GPS, then retry.");
+    renderTimelinePlaceholder("Location timeout. Enter origin and destination to continue instantly.");
+    return;
+  }
+
+  setStatus("Geolocation error. Use manual origin/destination or Retry Geolocation.");
+  setGeoHelp("An unexpected geolocation error occurred. Manual route mode remains available.");
+  renderTimelinePlaceholder("Location error. Enter origin and destination, then plan route to get forecasts.");
 }
 
 function startScheduledUpdates() {
@@ -826,5 +888,35 @@ function setStatus(text) {
 
 function setRouteStatus(text) {
   el.routeStatus.textContent = text;
+}
+
+function setGeoHelp(text) {
+  if (!el.geoHelp) {
+    return;
+  }
+  el.geoHelp.textContent = text;
+}
+
+function isSecureLocationContext() {
+  if (window.isSecureContext) {
+    return true;
+  }
+
+  return window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "::1";
+}
+
+async function getLocationPermissionState() {
+  if (!("permissions" in navigator) || typeof navigator.permissions.query !== "function") {
+    return "unknown";
+  }
+
+  try {
+    const result = await navigator.permissions.query({ name: "geolocation" });
+    return result.state || "unknown";
+  } catch (error) {
+    return "unknown";
+  }
 }
 
