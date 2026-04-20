@@ -4,6 +4,13 @@ const SPEED_DELTA_MS = 0.5;
 const HEADING_DELTA_DEG = 10;
 const ROUTE_REFRESH_MS = 60000;
 const ROUTE_ORIGIN_REFRESH_METERS = 200;
+const ADDIS_CENTER = { lat: 9.03, lon: 38.74 };
+const ADDIS_BOUNDS = {
+  minLat: 8.8,
+  maxLat: 9.2,
+  minLon: 38.6,
+  maxLon: 39.05
+};
 
 const state = {
   map: null,
@@ -73,12 +80,19 @@ function init() {
 }
 
 function initMap() {
-  state.map = L.map("map").setView([9.03, 38.74], 11);
+  state.map = L.map("map").setView([ADDIS_CENTER.lat, ADDIS_CENTER.lon], 12);
+  state.map.setMaxBounds(getAddisLeafletBounds());
+  state.map.options.maxBoundsViscosity = 1.0;
   setMapStyle("dark");
 
   state.map.on("click", (event) => {
     const lat = event.latlng.lat.toFixed(6);
     const lon = event.latlng.lng.toFixed(6);
+
+    if (!isInsideCoverage(Number(lat), Number(lon))) {
+      setRouteStatus("Selected point is outside Addis coverage. Pick a point inside Addis Ababa.");
+      return;
+    }
 
     if (el.mapPickTarget.value === "origin") {
       el.originLat.value = lat;
@@ -190,12 +204,21 @@ function bindDestinationForm() {
       return;
     }
 
+    if (!isInsideCoverage(destLat, destLon)) {
+      setRouteStatus("Destination is outside Addis coverage. Enter a destination inside Addis Ababa.");
+      return;
+    }
+
     const hasOriginInput = originLatRaw !== "" || originLonRaw !== "";
     if (hasOriginInput) {
       const originLat = Number(originLatRaw);
       const originLon = Number(originLonRaw);
       if (!Number.isFinite(originLat) || !Number.isFinite(originLon)) {
         setRouteStatus("If you provide origin, both origin latitude and longitude must be valid numbers.");
+        return;
+      }
+      if (!isInsideCoverage(originLat, originLon)) {
+        setRouteStatus("Origin is outside Addis coverage. Enter an origin inside Addis Ababa.");
         return;
       }
       state.route.originOverride = { lat: originLat, lon: originLon };
@@ -226,7 +249,7 @@ async function startGeoWatch() {
   if (!secureContextOk) {
     state.geo.permissionState = "unsupported";
     setStatus("Geolocation needs HTTPS or localhost. Use origin/destination fields for manual forecasting.");
-    setGeoHelp("Open this app from HTTPS (or localhost). On insecure origins, browsers block location APIs.");
+    setGeoHelp("Open this app from HTTPS (or localhost). Addis-only mode still works with manual origin and destination inside Addis.");
     renderTimelinePlaceholder("Location is blocked by insecure context. Enter origin and destination to continue.");
     return;
   }
@@ -243,7 +266,7 @@ async function startGeoWatch() {
 
   if (permissionState === "denied") {
     setStatus("Geolocation denied. Enable location permission in browser/site settings, or use manual origin/destination.");
-    setGeoHelp("Permission is denied. Change site location permission to Allow, then press Retry Geolocation.");
+    setGeoHelp("Permission is denied. Change site location permission to Allow, then press Retry Geolocation. You can still forecast inside Addis manually.");
     renderTimelinePlaceholder("Location permission denied. Enter origin and destination to run forecasts now.");
     return;
   }
@@ -280,8 +303,13 @@ function onPosition(position) {
   }
 
   renderLiveStatus();
-  setStatus("Live geolocation active.");
-  setGeoHelp("Receiving live position updates. You can override route origin manually at any time.");
+  if (isInsideCoverage(state.current.lat, state.current.lon)) {
+    setStatus("Live geolocation active.");
+    setGeoHelp("Receiving live position updates inside Addis. You can override route origin manually at any time.");
+  } else {
+    setStatus("Current location is outside Addis coverage. Use Addis origin/destination inputs.");
+    setGeoHelp("This app currently forecasts inside Addis only. Enter origin and destination points within Addis.");
+  }
   updateCurrentMarker();
 
   const speedChanged = hasSignificantSpeedChange(state.current.speedMs, state.last.speedMs);
@@ -347,6 +375,12 @@ async function updateEverything() {
   const activeOrigin = getActiveOriginPoint();
   if (!activeOrigin) {
     renderTimelinePlaceholder("No active origin yet. Add origin/destination or allow geolocation to start forecasting.");
+    return;
+  }
+
+  if (!isInsideCoverage(activeOrigin.lat, activeOrigin.lon)) {
+    setStatus("Origin is outside Addis coverage.");
+    renderTimelinePlaceholder("Forecasting is available only inside Addis Ababa. Enter Addis origin and destination.");
     return;
   }
 
@@ -452,6 +486,20 @@ async function planRouteFromCurrentLocation(userInitiated) {
   if (!origin) {
     if (userInitiated) {
       setRouteStatus("Origin is not available yet. Enter origin coordinates or allow geolocation/manual location first.");
+    }
+    return false;
+  }
+
+  if (!isInsideCoverage(origin.lat, origin.lon)) {
+    if (userInitiated) {
+      setRouteStatus("Origin is outside Addis coverage. Choose an origin inside Addis Ababa.");
+    }
+    return false;
+  }
+
+  if (!isInsideCoverage(state.route.destination.lat, state.route.destination.lon)) {
+    if (userInitiated) {
+      setRouteStatus("Destination is outside Addis coverage. Choose a destination inside Addis Ababa.");
     }
     return false;
   }
@@ -1012,6 +1060,24 @@ function isSecureLocationContext() {
   return window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "::1";
+}
+
+function isInsideCoverage(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return false;
+  }
+
+  return lat >= ADDIS_BOUNDS.minLat &&
+    lat <= ADDIS_BOUNDS.maxLat &&
+    lon >= ADDIS_BOUNDS.minLon &&
+    lon <= ADDIS_BOUNDS.maxLon;
+}
+
+function getAddisLeafletBounds() {
+  return [
+    [ADDIS_BOUNDS.minLat, ADDIS_BOUNDS.minLon],
+    [ADDIS_BOUNDS.maxLat, ADDIS_BOUNDS.maxLon]
+  ];
 }
 
 async function getLocationPermissionState() {
