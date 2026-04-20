@@ -18,7 +18,7 @@
     referrerpolicy="no-referrer"
   />
 
-  <link rel="stylesheet" href="styles.css?v=20260420" />
+  <link rel="stylesheet" href="styles.css?v=20260420b" />
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
   <main class="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
@@ -86,6 +86,34 @@
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <h2 class="text-lg font-semibold mb-3">Destination Route Forecast</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <button id="useCurrentOriginBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-3 py-2 text-sm font-semibold">
+          Use My Location as Origin
+        </button>
+        <button id="recenterAddisBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-3 py-2 text-sm font-semibold">
+          Recenter Addis
+        </button>
+        <div class="text-xs text-slate-400 flex items-center">Tip: drag origin/destination pins on map for precise placement.</div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 text-sm">
+        <select id="presetPlaceSelect" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+          <option value="">Quick Addis place...</option>
+          <option value="8.9806,38.7578">Bole Airport</option>
+          <option value="9.0370,38.7617">Meskel Square</option>
+          <option value="9.0320,38.7520">Mexico Square</option>
+          <option value="9.0352,38.7469">Piassa</option>
+          <option value="9.0108,38.8148">Megenagna</option>
+          <option value="9.0409,38.8501">CMC</option>
+        </select>
+        <select id="presetTarget" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+          <option value="destination" selected>Apply to destination</option>
+          <option value="origin">Apply to origin</option>
+        </select>
+        <button id="applyPresetBtn" type="button" class="bg-indigo-600 hover:bg-indigo-500 transition rounded px-3 py-2 font-semibold">
+          Apply Preset
+        </button>
+        <div class="text-xs text-slate-400 flex items-center">Coverage is limited to Addis Ababa.</div>
+      </div>
       <div class="mb-3 flex items-center gap-3 text-sm">
         <label for="mapPickTarget" class="text-slate-300">Map click fills:</label>
         <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
@@ -123,7 +151,7 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
-  <script src="app.js?v=20260420"></script>
+  <script src="app.js?v=20260420b"></script>
 </body>
 </html>
 

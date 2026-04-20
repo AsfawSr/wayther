@@ -11,12 +11,22 @@ const ADDIS_BOUNDS = {
   minLon: 38.6,
   maxLon: 39.05
 };
+const ADDIS_PRESETS = [
+  { name: "Bole Airport", lat: 8.9806, lon: 38.7578 },
+  { name: "Meskel Square", lat: 9.0370, lon: 38.7617 },
+  { name: "Mexico Square", lat: 9.0320, lon: 38.7520 },
+  { name: "Piassa", lat: 9.0352, lon: 38.7469 },
+  { name: "Megenagna", lat: 9.0108, lon: 38.8148 },
+  { name: "CMC", lat: 9.0409, lon: 38.8501 }
+];
 
 const state = {
   map: null,
   baseTileLayer: null,
   mapStyle: "dark",
   currentMarker: null,
+  originMarker: null,
+  destinationMarker: null,
   futureMarkers: [],
   routeBaseLayer: null,
   routeRiskLayers: [],
@@ -61,6 +71,11 @@ const el = {
   mapPickTarget: document.getElementById("mapPickTarget"),
   mapStyleDark: document.getElementById("mapStyleDark"),
   mapStyleSatellite: document.getElementById("mapStyleSatellite"),
+  useCurrentOriginBtn: document.getElementById("useCurrentOriginBtn"),
+  recenterAddisBtn: document.getElementById("recenterAddisBtn"),
+  presetPlaceSelect: document.getElementById("presetPlaceSelect"),
+  presetTarget: document.getElementById("presetTarget"),
+  applyPresetBtn: document.getElementById("applyPresetBtn"),
   originLat: document.getElementById("originLat"),
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
@@ -72,6 +87,7 @@ init();
 function init() {
   initMap();
   bindMapStyleToggle();
+  bindQuickActions();
   bindRetryGeolocation();
   bindDestinationForm();
   renderTimelinePlaceholder("Enable geolocation or enter origin/destination to see 15/30/60 minute forecasts.");
@@ -95,16 +111,69 @@ function initMap() {
     }
 
     if (el.mapPickTarget.value === "origin") {
-      el.originLat.value = lat;
-      el.originLon.value = lon;
-      setRouteStatus("Origin selected from map. Click Plan Route to update route forecast.");
+      applyOriginSelection(Number(lat), Number(lon), "Origin selected from map. Click Plan Route to update route forecast.");
       return;
     }
 
-    el.destLat.value = lat;
-    el.destLon.value = lon;
-    setRouteStatus("Destination selected from map. Click Plan Route to update route forecast.");
+    applyDestinationSelection(Number(lat), Number(lon), "Destination selected from map. Click Plan Route to update route forecast.");
   });
+}
+
+function bindQuickActions() {
+  if (el.recenterAddisBtn) {
+    el.recenterAddisBtn.addEventListener("click", () => {
+      state.map.fitBounds(getAddisLeafletBounds(), { padding: [24, 24] });
+      setRouteStatus("Map recentered to Addis coverage area.");
+    });
+  }
+
+  if (el.useCurrentOriginBtn) {
+    el.useCurrentOriginBtn.addEventListener("click", () => {
+      if (state.current.lat == null || state.current.lon == null) {
+        setRouteStatus("Live location is not available yet. Allow geolocation or type origin coordinates.");
+        return;
+      }
+
+      if (!isInsideCoverage(state.current.lat, state.current.lon)) {
+        setRouteStatus("Your current location is outside Addis coverage. Pick an Addis origin manually.");
+        return;
+      }
+
+      applyOriginSelection(state.current.lat, state.current.lon, "Origin set from live location.");
+      setRouteStatus("Origin set from live location. Now choose destination and plan route.");
+    });
+  }
+
+  if (el.applyPresetBtn) {
+    el.applyPresetBtn.addEventListener("click", () => {
+      const presetValue = (el.presetPlaceSelect && el.presetPlaceSelect.value) || "";
+      if (!presetValue) {
+        setRouteStatus("Choose a preset place first.");
+        return;
+      }
+
+      const [latRaw, lonRaw] = presetValue.split(",");
+      const lat = Number(latRaw);
+      const lon = Number(lonRaw);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        setRouteStatus("Selected preset is invalid. Please choose another place.");
+        return;
+      }
+
+      const selectedName = ADDIS_PRESETS.find((p) => p.lat === lat && p.lon === lon)?.name || "preset point";
+      const target = (el.presetTarget && el.presetTarget.value) || "destination";
+      if (target === "origin") {
+        applyOriginSelection(lat, lon, `${selectedName} set as origin.`);
+        setRouteStatus(`${selectedName} applied as origin. Choose destination and plan route.`);
+      } else {
+        applyDestinationSelection(lat, lon, `${selectedName} set as destination.`);
+        setRouteStatus(`${selectedName} applied as destination. Click Plan Route to refresh forecast.`);
+      }
+
+      state.map.setView([lat, lon], 13);
+    });
+  }
 }
 
 function bindMapStyleToggle() {
@@ -221,12 +290,13 @@ function bindDestinationForm() {
         setRouteStatus("Origin is outside Addis coverage. Enter an origin inside Addis Ababa.");
         return;
       }
-      state.route.originOverride = { lat: originLat, lon: originLon };
+      applyOriginSelection(originLat, originLon, null);
     } else {
       state.route.originOverride = null;
+      removeRoutePointMarker("origin");
     }
 
-    state.route.destination = { lat: destLat, lon: destLon };
+    applyDestinationSelection(destLat, destLon, null);
     setRouteStatus("Planning route...");
 
     const ok = await planRouteFromCurrentLocation(true);
@@ -240,6 +310,91 @@ function bindDestinationForm() {
     setRouteStatus("Route cleared. Forecast falls back to heading projection.");
     updateEverything();
   });
+}
+
+function applyOriginSelection(lat, lon, statusMessage) {
+  if (!isInsideCoverage(lat, lon)) {
+    if (statusMessage) {
+      setRouteStatus("Origin is outside Addis coverage. Choose a point inside Addis Ababa.");
+    }
+    return false;
+  }
+
+  el.originLat.value = lat.toFixed(6);
+  el.originLon.value = lon.toFixed(6);
+  state.route.originOverride = { lat, lon };
+  upsertRoutePointMarker("origin", lat, lon);
+
+  if (statusMessage) {
+    setRouteStatus(statusMessage);
+  }
+  return true;
+}
+
+function applyDestinationSelection(lat, lon, statusMessage) {
+  if (!isInsideCoverage(lat, lon)) {
+    if (statusMessage) {
+      setRouteStatus("Destination is outside Addis coverage. Choose a point inside Addis Ababa.");
+    }
+    return false;
+  }
+
+  el.destLat.value = lat.toFixed(6);
+  el.destLon.value = lon.toFixed(6);
+  state.route.destination = { lat, lon };
+  upsertRoutePointMarker("destination", lat, lon);
+
+  if (statusMessage) {
+    setRouteStatus(statusMessage);
+  }
+  return true;
+}
+
+function upsertRoutePointMarker(kind, lat, lon) {
+  const markerRef = kind === "origin" ? "originMarker" : "destinationMarker";
+  const cssClass = kind === "origin" ? "route-point-origin" : "route-point-destination";
+
+  const icon = L.divIcon({
+    html: `<div class="route-point ${cssClass}"></div>`,
+    className: "",
+    iconSize: [18, 18]
+  });
+
+  if (!state[markerRef]) {
+    const marker = L.marker([lat, lon], { icon, draggable: true, autoPan: true }).addTo(state.map);
+    marker.on("dragend", () => {
+      const latLng = marker.getLatLng();
+      if (!isInsideCoverage(latLng.lat, latLng.lng)) {
+        setRouteStatus("Point must stay inside Addis coverage. Drag it back inside Addis.");
+        if (kind === "origin" && state.route.originOverride) {
+          marker.setLatLng([state.route.originOverride.lat, state.route.originOverride.lon]);
+        } else if (kind === "destination" && state.route.destination) {
+          marker.setLatLng([state.route.destination.lat, state.route.destination.lon]);
+        }
+        return;
+      }
+
+      if (kind === "origin") {
+        applyOriginSelection(latLng.lat, latLng.lng, "Origin marker moved. Click Plan Route to refresh route forecast.");
+      } else {
+        applyDestinationSelection(latLng.lat, latLng.lng, "Destination marker moved. Click Plan Route to refresh route forecast.");
+      }
+    });
+
+    state[markerRef] = marker;
+    return;
+  }
+
+  state[markerRef].setLatLng([lat, lon]);
+}
+
+function removeRoutePointMarker(kind) {
+  const markerRef = kind === "origin" ? "originMarker" : "destinationMarker";
+  if (!state[markerRef]) {
+    return;
+  }
+  state.map.removeLayer(state[markerRef]);
+  state[markerRef] = null;
 }
 
 async function startGeoWatch() {
