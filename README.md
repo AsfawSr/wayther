@@ -36,6 +36,61 @@ mvn spring-boot:run
 
 Open `http://localhost:8080` in your browser.
 
+## MVP Ship Checklist
+- [ ] `mvn test` passes locally
+- [ ] App starts with `mvn spring-boot:run`
+- [ ] Geolocation flow works on `https` or `localhost`
+- [ ] Manual origin/destination fallback works when geolocation is denied
+- [ ] Route request succeeds for Addis-covered points (`GET /api/route`)
+- [ ] Weather current/future/batch endpoints return valid JSON
+- [ ] Out-of-coverage requests return `422` with `{ "code": "OUT_OF_COVERAGE", "message": "..." }`
+- [ ] Upstream provider failures return `502` with stable error codes for UI handling
+
+## Environment and Config
+Key properties in `src/main/resources/application.properties`:
+
+- `wayther.osrm.base-url` - OSRM base URL
+- `wayther.osrm.cache-ttl-ms` - route cache TTL
+- `wayther.osrm.connect-timeout-ms` - OSRM connect timeout
+- `wayther.osrm.read-timeout-ms` - OSRM read timeout
+- `wayther.weather.cache-ttl-ms` - weather cache TTL
+- `wayther.weather.connect-timeout-ms` - Open-Meteo connect timeout
+- `wayther.weather.read-timeout-ms` - Open-Meteo read timeout
+- `wayther.coverage.addis.min-lat`
+- `wayther.coverage.addis.max-lat`
+- `wayther.coverage.addis.min-lon`
+- `wayther.coverage.addis.max-lon`
+
+## API Smoke Tests (PowerShell)
+Run app first, then test from another terminal.
+
+```powershell
+$base = "http://localhost:8080"
+
+# Current weather
+Invoke-RestMethod "$base/api/weather/current?latitude=9.03&longitude=38.74"
+
+# Future weather
+Invoke-RestMethod "$base/api/weather/future?latitude=9.03&longitude=38.74&targetIso=2026-04-20T18:00:00Z"
+
+# Future weather batch
+$body = @(
+  @{ latitude = 9.03; longitude = 38.74; targetIso = "2026-04-20T18:00:00Z" },
+  @{ latitude = 9.04; longitude = 38.75; targetIso = "2026-04-20T18:30:00Z" }
+) | ConvertTo-Json
+Invoke-RestMethod -Uri "$base/api/weather/future/batch" -Method Post -ContentType "application/json" -Body $body
+
+# Route
+Invoke-RestMethod "$base/api/route?originLat=9.03&originLon=38.74&destLat=9.08&destLon=38.79"
+
+# Expected coverage error (422)
+try {
+  Invoke-RestMethod "$base/api/weather/current?latitude=8.20&longitude=38.74"
+} catch {
+  $_.Exception.Response.StatusCode.value__
+}
+```
+
 ## Notes
 - Geolocation usually requires `https` or `localhost`.
 - If geolocation is unavailable, you can still plan forecasts by entering origin and destination coordinates.
