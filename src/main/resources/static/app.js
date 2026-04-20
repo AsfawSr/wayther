@@ -7,6 +7,8 @@ const ROUTE_ORIGIN_REFRESH_METERS = 200;
 
 const state = {
   map: null,
+  baseTileLayer: null,
+  mapStyle: "dark",
   currentMarker: null,
   futureMarkers: [],
   routeBaseLayer: null,
@@ -50,6 +52,8 @@ const el = {
   destinationForm: document.getElementById("destinationForm"),
   clearRouteBtn: document.getElementById("clearRouteBtn"),
   mapPickTarget: document.getElementById("mapPickTarget"),
+  mapStyleDark: document.getElementById("mapStyleDark"),
+  mapStyleSatellite: document.getElementById("mapStyleSatellite"),
   originLat: document.getElementById("originLat"),
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
@@ -60,6 +64,7 @@ init();
 
 function init() {
   initMap();
+  bindMapStyleToggle();
   bindRetryGeolocation();
   bindDestinationForm();
   renderTimelinePlaceholder("Enable geolocation or enter origin/destination to see 15/30/60 minute forecasts.");
@@ -69,10 +74,7 @@ function init() {
 
 function initMap() {
   state.map = L.map("map").setView([9.03, 38.74], 11);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    maxZoom: 19
-  }).addTo(state.map);
+  setMapStyle("dark");
 
   state.map.on("click", (event) => {
     const lat = event.latlng.lat.toFixed(6);
@@ -89,6 +91,69 @@ function initMap() {
     el.destLon.value = lon;
     setRouteStatus("Destination selected from map. Click Plan Route to update route forecast.");
   });
+}
+
+function bindMapStyleToggle() {
+  if (el.mapStyleDark) {
+    el.mapStyleDark.addEventListener("click", () => setMapStyle("dark"));
+  }
+
+  if (el.mapStyleSatellite) {
+    el.mapStyleSatellite.addEventListener("click", () => setMapStyle("satellite"));
+  }
+
+  updateMapStyleToggleUi();
+}
+
+function setMapStyle(style) {
+  const nextStyle = style === "satellite" ? "satellite" : "dark";
+
+  if (!state.map) {
+    state.mapStyle = nextStyle;
+    updateMapStyleToggleUi();
+    return;
+  }
+
+  if (state.baseTileLayer) {
+    state.map.removeLayer(state.baseTileLayer);
+  }
+
+  if (nextStyle === "satellite") {
+    state.baseTileLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19
+      }
+    );
+  } else {
+    state.baseTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+      maxZoom: 19
+    });
+  }
+
+  state.baseTileLayer.addTo(state.map);
+  state.mapStyle = nextStyle;
+  updateMapStyleToggleUi();
+}
+
+function updateMapStyleToggleUi() {
+  if (el.mapStyleDark) {
+    const darkActive = state.mapStyle === "dark";
+    el.mapStyleDark.className = darkActive
+      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
+      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition";
+    el.mapStyleDark.setAttribute("aria-pressed", String(darkActive));
+  }
+
+  if (el.mapStyleSatellite) {
+    const satActive = state.mapStyle === "satellite";
+    el.mapStyleSatellite.className = satActive
+      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
+      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition";
+    el.mapStyleSatellite.setAttribute("aria-pressed", String(satActive));
+  }
 }
 
 function bindRetryGeolocation() {

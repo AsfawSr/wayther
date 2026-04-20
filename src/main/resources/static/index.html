@@ -60,7 +60,27 @@
     </section>
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <h2 class="text-lg font-semibold mb-3">Map</h2>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold">Map</h2>
+        <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden text-sm">
+          <button
+            id="mapStyleDark"
+            type="button"
+            class="bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
+            aria-pressed="true"
+          >
+            Dark
+          </button>
+          <button
+            id="mapStyleSatellite"
+            type="button"
+            class="bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition"
+            aria-pressed="false"
+          >
+            Satellite
+          </button>
+        </div>
+      </div>
       <div id="map" class="w-full h-[400px] rounded-lg overflow-hidden border border-slate-800"></div>
     </section>
 
