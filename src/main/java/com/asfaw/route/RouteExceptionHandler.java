@@ -41,6 +41,7 @@ public class RouteExceptionHandler {
     }
 
     @ExceptionHandler({
+            IllegalArgumentException.class,
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
             HttpMessageNotReadableException.class
