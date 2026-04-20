@@ -1,12 +1,16 @@
 package com.asfaw.weather;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -15,7 +19,18 @@ import java.time.ZoneOffset;
 public class OpenMeteoClient {
     private static final String BASE_URL = "https://api.open-meteo.com/v1/forecast";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public OpenMeteoClient(
+            RestTemplateBuilder restTemplateBuilder,
+            @Value("${wayther.weather.connect-timeout-ms:4000}") long connectTimeoutMs,
+            @Value("${wayther.weather.read-timeout-ms:5000}") long readTimeoutMs
+    ) {
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
+                .setReadTimeout(Duration.ofMillis(readTimeoutMs))
+                .build();
+    }
 
     public WeatherSnapshot fetchCurrent(double latitude, double longitude) {
         URI uri = UriComponentsBuilder.fromHttpUrl(BASE_URL)
@@ -26,6 +41,9 @@ public class OpenMeteoClient {
                 .toUri();
 
         JsonNode root = fetchJson(uri);
+        if (root.path("error").asBoolean(false)) {
+            throw new WeatherProviderException("Open-Meteo returned an error: " + root.path("reason").asText("unknown error"));
+        }
         JsonNode current = root.path("current");
 
         double precipitationProbability = current.path("precipitation_probability").asDouble(0);
@@ -45,6 +63,9 @@ public class OpenMeteoClient {
                 .toUri();
 
         JsonNode root = fetchJson(uri);
+        if (root.path("error").asBoolean(false)) {
+            throw new WeatherProviderException("Open-Meteo returned an error: " + root.path("reason").asText("unknown error"));
+        }
         JsonNode hourly = root.path("hourly");
 
         JsonNode times = hourly.path("time");
@@ -78,11 +99,20 @@ public class OpenMeteoClient {
         try {
             JsonNode body = restTemplate.getForObject(uri, JsonNode.class);
             if (body == null) {
-                throw new IllegalStateException("Open-Meteo response body is empty");
+                throw new WeatherProviderException("Open-Meteo response body is empty");
             }
             return body;
+        } catch (HttpStatusCodeException ex) {
+            int statusCode = ex.getStatusCode().value();
+            if (statusCode == 429) {
+                throw new WeatherProviderException("Open-Meteo rate limit reached. Please retry shortly.", ex);
+            }
+            if (statusCode >= 500) {
+                throw new WeatherProviderException("Open-Meteo is currently unavailable.", ex);
+            }
+            throw new WeatherProviderException("Open-Meteo rejected weather request.", ex);
         } catch (RestClientException ex) {
-            throw new IllegalStateException("Open-Meteo request failed", ex);
+            throw new WeatherProviderException("Open-Meteo request failed", ex);
         }
     }
 

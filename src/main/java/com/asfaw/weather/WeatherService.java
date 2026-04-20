@@ -1,5 +1,6 @@
 package com.asfaw.weather;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -10,13 +11,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class WeatherService {
-    private static final long CACHE_TTL_MS = 30_000;
-
     private final OpenMeteoClient openMeteoClient;
+    private final long cacheTtlMs;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
-    public WeatherService(OpenMeteoClient openMeteoClient) {
+    public WeatherService(
+            OpenMeteoClient openMeteoClient,
+            @Value("${wayther.weather.cache-ttl-ms:30000}") long cacheTtlMs
+    ) {
         this.openMeteoClient = openMeteoClient;
+        this.cacheTtlMs = cacheTtlMs;
     }
 
     public WeatherSnapshot getCurrent(double latitude, double longitude) {
@@ -52,7 +56,7 @@ public class WeatherService {
         }
 
         WeatherSnapshot snapshot = loader.load();
-        cache.put(key, new CacheEntry(snapshot, now + CACHE_TTL_MS));
+        cache.put(key, new CacheEntry(snapshot, now + cacheTtlMs));
         return snapshot;
     }
 

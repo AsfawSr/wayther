@@ -1,6 +1,7 @@
 package com.asfaw.route;
 
 import com.asfaw.geo.CoverageAreaException;
+import com.asfaw.weather.WeatherProviderException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -21,6 +22,12 @@ public class RouteExceptionHandler {
     public ResponseEntity<RouteErrorResponse> handleRouteProviderError(RouteProviderException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new RouteErrorResponse("ROUTE_PROVIDER_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(WeatherProviderException.class)
+    public ResponseEntity<RouteErrorResponse> handleWeatherProviderError(WeatherProviderException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new RouteErrorResponse("WEATHER_PROVIDER_ERROR", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
