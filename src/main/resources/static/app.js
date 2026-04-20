@@ -397,9 +397,15 @@ async function planRouteFromCurrentLocation(userInitiated) {
     setRouteStatus(`Route ready (${etaMin} min ETA, ${(route.totalDistanceM / 1000).toFixed(1)} km).`);
     return true;
   } catch (error) {
-    console.error(error);
+    console.warn(error);
     if (userInitiated) {
-      setRouteStatus("Unable to fetch route right now. Falling back to heading-based forecast.");
+      if (error && (error.code === "NO_ROUTE" || error.status === 422)) {
+        setRouteStatus("No drivable route found between origin and destination. Pick points on connected roads.");
+      } else {
+        setRouteStatus(error && error.message
+          ? `${error.message} Falling back to heading-based forecast.`
+          : "Unable to fetch route right now. Falling back to heading-based forecast.");
+      }
     }
     return false;
   }
@@ -876,10 +882,33 @@ function toDeg(rad) {
 
 async function fetchJson(url, options = undefined) {
   const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
+  const rawBody = await response.text();
+  let parsedBody = null;
+
+  if (rawBody) {
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch (error) {
+      parsedBody = null;
+    }
   }
-  return response.json();
+
+  if (!response.ok) {
+    const message =
+      (parsedBody && (parsedBody.message || parsedBody.detail || parsedBody.error)) ||
+      `Request failed (${response.status})`;
+    const requestError = new Error(message);
+    requestError.status = response.status;
+    requestError.code = parsedBody && parsedBody.code ? parsedBody.code : null;
+    requestError.payload = parsedBody;
+    throw requestError;
+  }
+
+  if (parsedBody != null) {
+    return parsedBody;
+  }
+
+  return null;
 }
 
 function setStatus(text) {
