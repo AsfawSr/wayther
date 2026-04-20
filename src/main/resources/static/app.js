@@ -95,14 +95,27 @@ function initMap() {
 
 function bindMapStyleToggle() {
   if (el.mapStyleDark) {
-    el.mapStyleDark.addEventListener("click", () => setMapStyle("dark"));
+    bindStyleButton(el.mapStyleDark, "dark");
   }
 
   if (el.mapStyleSatellite) {
-    el.mapStyleSatellite.addEventListener("click", () => setMapStyle("satellite"));
+    bindStyleButton(el.mapStyleSatellite, "satellite");
   }
 
   updateMapStyleToggleUi();
+}
+
+function bindStyleButton(button, style) {
+  const activate = (event) => {
+    if (event) {
+      event.preventDefault();
+    }
+    setMapStyle(style);
+  };
+
+  button.addEventListener("click", activate);
+  button.addEventListener("pointerup", activate);
+  button.addEventListener("touchend", activate, { passive: false });
 }
 
 function setMapStyle(style) {
@@ -142,16 +155,16 @@ function updateMapStyleToggleUi() {
   if (el.mapStyleDark) {
     const darkActive = state.mapStyle === "dark";
     el.mapStyleDark.className = darkActive
-      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
-      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition";
+      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition cursor-pointer select-none"
+      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition cursor-pointer select-none";
     el.mapStyleDark.setAttribute("aria-pressed", String(darkActive));
   }
 
   if (el.mapStyleSatellite) {
     const satActive = state.mapStyle === "satellite";
     el.mapStyleSatellite.className = satActive
-      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
-      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition";
+      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition cursor-pointer select-none"
+      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition cursor-pointer select-none";
     el.mapStyleSatellite.setAttribute("aria-pressed", String(satActive));
   }
 }

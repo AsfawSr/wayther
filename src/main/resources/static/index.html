@@ -18,7 +18,7 @@
     referrerpolicy="no-referrer"
   />
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260420" />
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
   <main class="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
@@ -60,13 +60,13 @@
     </section>
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-3 relative z-20">
         <h2 class="text-lg font-semibold">Map</h2>
         <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden text-sm">
           <button
             id="mapStyleDark"
             type="button"
-            class="bg-indigo-600 text-white px-3 py-1.5 font-semibold transition"
+            class="bg-indigo-600 text-white px-3 py-1.5 font-semibold transition cursor-pointer select-none"
             aria-pressed="true"
           >
             Dark
@@ -74,14 +74,14 @@
           <button
             id="mapStyleSatellite"
             type="button"
-            class="bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition"
+            class="bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition cursor-pointer select-none"
             aria-pressed="false"
           >
             Satellite
           </button>
         </div>
       </div>
-      <div id="map" class="w-full h-[400px] rounded-lg overflow-hidden border border-slate-800"></div>
+      <div id="map" class="w-full h-[400px] rounded-lg overflow-hidden border border-slate-800 relative z-0"></div>
     </section>
 
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
@@ -123,7 +123,7 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260420"></script>
 </body>
 </html>
 
