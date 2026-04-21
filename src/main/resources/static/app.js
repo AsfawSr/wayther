@@ -824,13 +824,20 @@ async function buildRoutePredictionsBatch() {
 function createRouteCheckpoint(minutesAhead) {
   const sample = sampleRoutePointAtSeconds(minutesAhead * 60);
   const fallback = state.route.destination;
-  const point = sample || fallback;
+  const point = sample ? sample.point : fallback;
+
+  const hasDuration = state.route.totalDurationSec > 0;
+  const sampledSeconds = sample ? sample.sampledSeconds : state.route.totalDurationSec;
+  const remainingSeconds = hasDuration ? Math.max(0, state.route.totalDurationSec - sampledSeconds) : null;
+  const etaMinutes = remainingSeconds == null ? null : Math.ceil(remainingSeconds / 60);
 
   return {
     minutesAhead,
     lat: point.lat,
     lon: point.lon,
-    targetTime: new Date(Date.now() + minutesAhead * 60 * 1000)
+    targetTime: new Date(Date.now() + minutesAhead * 60 * 1000),
+    pathLabel: classifyRouteCheckpoint(sample),
+    etaMinutes
   };
 }
 
@@ -846,9 +853,23 @@ async function hydratePredictionsFromBatch(checkpoints, source) {
       precipitationProbability: future.precipitationProbability,
       weatherCode: future.weatherCode,
       condition: mapWeatherCode(future.weatherCode),
-      source
+      source,
+      pathLabel: checkpoint.pathLabel || null,
+      etaMinutes: checkpoint.etaMinutes ?? null
     };
   });
+}
+
+function classifyRouteCheckpoint(sample) {
+  if (!sample || sample.reachedDestination) {
+    return "destination";
+  }
+
+  if (sample.progressRatio <= 0.2) {
+    return "origin-side";
+  }
+
+  return "en-route";
 }
 
 function sampleRoutePointAtSeconds(targetSeconds) {
@@ -857,7 +878,13 @@ function sampleRoutePointAtSeconds(targetSeconds) {
   }
 
   if (state.route.totalDurationSec <= 0 || state.route.totalDistanceM <= 0) {
-    return state.route.geometry[state.route.geometry.length - 1];
+    const lastPoint = state.route.geometry[state.route.geometry.length - 1];
+    return {
+      point: lastPoint,
+      sampledSeconds: targetSeconds,
+      progressRatio: 1,
+      reachedDestination: true
+    };
   }
 
   const clampedSec = Math.min(targetSeconds, state.route.totalDurationSec);
@@ -871,11 +898,21 @@ function sampleRoutePointAtSeconds(targetSeconds) {
       const startDistance = distances[i - 1];
       const endDistance = distances[i];
       const ratio = endDistance === startDistance ? 0 : (targetDistance - startDistance) / (endDistance - startDistance);
-      return interpolatePoint(points[i - 1], points[i], ratio);
+      return {
+        point: interpolatePoint(points[i - 1], points[i], ratio),
+        sampledSeconds: clampedSec,
+        progressRatio: targetDistance / state.route.totalDistanceM,
+        reachedDestination: clampedSec >= state.route.totalDurationSec
+      };
     }
   }
 
-  return points[points.length - 1];
+  return {
+    point: points[points.length - 1],
+    sampledSeconds: clampedSec,
+    progressRatio: 1,
+    reachedDestination: true
+  };
 }
 
 function buildCumulativeDistances(points) {
@@ -985,13 +1022,21 @@ function renderTimeline(current, predictions) {
 
   el.timeline.innerHTML = predictions
     .map((p) => {
+      const pathPointText = p.source === "route"
+        ? `Path point: ${p.pathLabel || "destination"}`
+        : "Path point: heading projection";
+      const etaText = p.source === "route" && p.etaMinutes != null
+        ? `ETA from now: ${p.etaMinutes} min`
+        : null;
+
       return `
         <article class="rounded-lg bg-slate-800 border border-slate-700 p-3">
           <h3 class="font-semibold">${p.minutesAhead} min</h3>
           <p class="text-sm text-slate-300">Condition: ${p.condition}</p>
           <p class="text-sm text-slate-300">Risk probability: ${p.precipitationProbability}%</p>
           <p class="text-xs text-slate-500">Lat ${p.lat.toFixed(4)}, Lon ${p.lon.toFixed(4)}</p>
-          <p class="text-xs text-slate-500">Mode: ${p.source === "route" ? "destination route" : "heading projection"}</p>
+          <p class="text-xs text-slate-500">${pathPointText}</p>
+          ${etaText ? `<p class="text-xs text-slate-500">${etaText}</p>` : ""}
         </article>
       `;
     })
@@ -1020,8 +1065,11 @@ function renderFutureMarkers(predictions) {
     });
 
     const marker = L.marker([p.lat, p.lon], { icon }).addTo(state.map);
+    const pathPoint = p.source === "route"
+      ? `Path point: ${p.pathLabel || "destination"}<br>`
+      : "Path point: heading projection<br>";
     marker.bindPopup(
-      `${p.minutesAhead} min<br>Condition: ${p.condition}<br>Chance: ${p.precipitationProbability}%`
+      `${p.minutesAhead} min<br>${pathPoint}Condition: ${p.condition}<br>Chance: ${p.precipitationProbability}%`
     );
     state.futureMarkers.push(marker);
   }
