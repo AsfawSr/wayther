@@ -50,6 +50,13 @@
                 <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
               </label>
             </div>
+            <div class="flex flex-col gap-1.5 border-t border-white/5 pt-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-300 font-medium">Speed Simulator</span>
+                <span id="simSpeedVal" class="font-mono text-indigo-300 font-bold">Real GPS</span>
+              </div>
+              <input type="range" id="simSpeedSlider" min="0" max="120" step="5" value="0" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+            </div>
             <p class="text-slate-400 border-t border-white/5 pt-2 text-xs" id="statusText">Waiting for location...</p>
             <div id="geoHelp" class="rounded-lg border border-white/5 bg-slate-950/60 p-2.5 text-[11px] text-slate-400 leading-relaxed">
               Limited to Addis Ababa coverage. Requires HTTPS/localhost.
@@ -158,6 +165,19 @@
               <button id="clearRouteBtn" class="bg-slate-800 hover:bg-slate-700 border border-slate-650 transition rounded-lg py-2 font-semibold text-xs" type="button">
                 Clear Route
               </button>
+            </div>
+
+            <!-- Save/Load Trips Section -->
+            <div class="space-y-2 border-t border-white/5 pt-3">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Saved Trips</label>
+                <button id="saveTripBtn" type="button" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold transition flex items-center gap-1 select-none">
+                  <i class="fa-solid fa-plus"></i> Save Current
+                </button>
+              </div>
+              <ul id="savedTripsList" class="space-y-1.5 text-xs max-h-24 overflow-y-auto pr-1">
+                <li class="text-[11px] text-slate-500 italic">No saved trips yet.</li>
+              </ul>
             </div>
           </form>
           <p id="routeStatus" class="text-xs text-slate-400 mt-3 leading-normal">

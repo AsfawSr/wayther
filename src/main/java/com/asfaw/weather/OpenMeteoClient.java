@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Component
-public class OpenMeteoClient {
+public class OpenMeteoClient implements WeatherClient {
     private static final String BASE_URL = "https://api.open-meteo.com/v1/forecast";
 
     private final RestTemplate restTemplate;

@@ -1,5 +1,6 @@
 package com.asfaw.weather;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,21 +12,30 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class WeatherService {
-    private final OpenMeteoClient openMeteoClient;
+    private final WeatherClient openMeteoClient;
+    private final WeatherClient metNoClient;
     private final long cacheTtlMs;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     public WeatherService(
-            OpenMeteoClient openMeteoClient,
+            @Qualifier("openMeteoClient") WeatherClient openMeteoClient,
+            @Qualifier("metNoClient") WeatherClient metNoClient,
             @Value("${wayther.weather.cache-ttl-ms:30000}") long cacheTtlMs
     ) {
         this.openMeteoClient = openMeteoClient;
+        this.metNoClient = metNoClient;
         this.cacheTtlMs = cacheTtlMs;
     }
 
     public WeatherSnapshot getCurrent(double latitude, double longitude) {
         String key = "current:%s:%s".formatted(roundCoord(latitude), roundCoord(longitude));
-        return getOrLoad(key, () -> openMeteoClient.fetchCurrent(latitude, longitude));
+        return getOrLoad(key, () -> {
+            try {
+                return openMeteoClient.fetchCurrent(latitude, longitude);
+            } catch (Exception ex) {
+                return metNoClient.fetchCurrent(latitude, longitude);
+            }
+        });
     }
 
     public WeatherSnapshot getFuture(double latitude, double longitude, Instant targetTime) {
@@ -35,7 +45,13 @@ public class WeatherService {
                 roundCoord(longitude),
                 hourBucket.toString()
         );
-        return getOrLoad(key, () -> openMeteoClient.fetchFutureNearest(latitude, longitude, targetTime));
+        return getOrLoad(key, () -> {
+            try {
+                return openMeteoClient.fetchFutureNearest(latitude, longitude, targetTime);
+            } catch (Exception ex) {
+                return metNoClient.fetchFutureNearest(latitude, longitude, targetTime);
+            }
+        });
     }
 
     public List<WeatherSnapshot> getFutureBatch(List<FutureWeatherCheckpoint> checkpoints) {
