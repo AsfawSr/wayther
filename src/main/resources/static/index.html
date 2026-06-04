@@ -18,50 +18,61 @@
     referrerpolicy="no-referrer"
   />
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
   <link rel="stylesheet" href="styles.css?v=20260420b" />
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
   <main class="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
-    <header class="flex items-center justify-between gap-3">
+    <header class="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold">SkyPath</h1>
-        <p class="text-slate-300">Personal Weather Pathfinder</p>
+        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">SkyPath</h1>
+        <p class="text-slate-300 text-sm md:text-base font-medium">Personal Weather Pathfinder</p>
       </div>
-      <i class="fa-solid fa-cloud-moon-rain text-cyan-300 text-3xl"></i>
+      <i class="fa-solid fa-cloud-moon-rain text-cyan-400 text-3xl md:text-4xl filter drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]"></i>
     </header>
 
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <article class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <h2 class="text-lg font-semibold mb-2">Live Status</h2>
+      <article class="glass-panel rounded-2xl p-5 shadow-2xl">
+        <h2 class="text-lg font-bold mb-3 border-b border-white/5 pb-2 text-indigo-300">Live Status</h2>
         <div class="space-y-2 text-sm">
-          <p class="flex justify-between"><span>Speed (km/h)</span><span id="speedKmh">0.00</span></p>
-          <p class="flex justify-between"><span>Speed (m/s)</span><span id="speedMs">0.00</span></p>
-          <p class="flex justify-between"><span>Heading</span><span id="headingText">N/A</span></p>
-          <p class="text-slate-400" id="statusText">Waiting for location...</p>
-          <div id="geoHelp" class="rounded-lg border border-slate-700 bg-slate-800/60 p-2 text-xs text-slate-300">
+          <p class="flex justify-between"><span>Speed (km/h)</span><span id="speedKmh" class="font-mono font-semibold">0.00</span></p>
+          <p class="flex justify-between"><span>Speed (m/s)</span><span id="speedMs" class="font-mono font-semibold">0.00</span></p>
+          <p class="flex justify-between"><span>Heading</span><span id="headingText" class="font-mono font-semibold">N/A</span></p>
+          <div class="flex items-center justify-between py-1 border-t border-white/5 pt-2">
+            <span class="text-slate-300 font-medium">Follow Location</span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input type="checkbox" id="followLocationToggle" class="sr-only peer" checked />
+              <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+          <p class="text-slate-400 border-t border-white/5 pt-2" id="statusText">Waiting for location...</p>
+          <div id="geoHelp" class="rounded-lg border border-white/5 bg-slate-950/60 p-2 text-xs text-slate-300 leading-relaxed">
             Geolocation works only on HTTPS or localhost. Forecast coverage is currently limited to Addis Ababa.
           </div>
           <button
             id="retryGeoBtn"
             type="button"
-            class="mt-2 w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-4 py-2 text-sm font-semibold"
+            class="mt-2 w-full bg-slate-850 hover:bg-slate-800 border border-slate-700 transition rounded-lg px-4 py-2 text-sm font-semibold"
           >
             Retry Geolocation
           </button>
         </div>
       </article>
 
-      <article class="bg-slate-900 border border-slate-800 rounded-xl p-4 lg:col-span-2">
-        <h2 class="text-lg font-semibold mb-2">Vibe Check</h2>
-        <div id="vibeCheck" class="warning-box warning-good rounded-lg p-3">
+      <article class="glass-panel rounded-2xl p-5 lg:col-span-2 shadow-2xl">
+        <h2 class="text-lg font-bold mb-3 border-b border-white/5 pb-2 text-indigo-300">Vibe Check</h2>
+        <div id="vibeCheck" class="warning-box warning-good rounded-xl p-3 h-[calc(100%-3rem)] flex items-center justify-center text-center">
           <i class="fa-solid fa-circle-check mr-2"></i>No risk detected yet.
         </div>
       </article>
     </section>
 
-    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+    <section class="glass-panel rounded-2xl p-5 shadow-2xl">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3 relative z-20">
-        <h2 class="text-lg font-semibold">Map</h2>
+        <h2 class="text-lg font-bold text-indigo-300">Map</h2>
         <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden text-sm">
           <button
             id="mapStyleDark"
@@ -81,22 +92,22 @@
           </button>
         </div>
       </div>
-      <div id="map" class="w-full h-[400px] rounded-lg overflow-hidden border border-slate-800 relative z-0"></div>
+      <div id="map" class="w-full h-[400px] rounded-xl overflow-hidden border border-slate-800 relative z-0"></div>
     </section>
 
-    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <h2 class="text-lg font-semibold mb-3">Destination Route Forecast</h2>
+    <section class="glass-panel rounded-2xl p-5 shadow-2xl">
+      <h2 class="text-lg font-bold mb-3 border-b border-white/5 pb-2 text-indigo-300">Destination Route Forecast</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <button id="useCurrentOriginBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-3 py-2 text-sm font-semibold">
+        <button id="useCurrentOriginBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 transition rounded-lg px-3 py-2 text-sm font-semibold">
           Use My Location as Origin
         </button>
-        <button id="recenterAddisBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-3 py-2 text-sm font-semibold">
+        <button id="recenterAddisBtn" type="button" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 transition rounded-lg px-3 py-2 text-sm font-semibold">
           Recenter Addis
         </button>
         <div class="text-xs text-slate-400 flex items-center">Tip: drag origin/destination pins on map for precise placement.</div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 text-sm">
-        <select id="presetPlaceSelect" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+        <select id="presetPlaceSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
           <option value="">Quick Addis place...</option>
           <option value="8.9806,38.7578">Bole Airport</option>
           <option value="9.0370,38.7617">Meskel Square</option>
@@ -105,32 +116,32 @@
           <option value="9.0108,38.8148">Megenagna</option>
           <option value="9.0409,38.8501">CMC</option>
         </select>
-        <select id="presetTarget" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+        <select id="presetTarget" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
           <option value="destination" selected>Apply to destination</option>
           <option value="origin">Apply to origin</option>
         </select>
-        <button id="applyPresetBtn" type="button" class="bg-indigo-600 hover:bg-indigo-500 transition rounded px-3 py-2 font-semibold">
+        <button id="applyPresetBtn" type="button" class="bg-indigo-600 hover:bg-indigo-500 transition rounded-lg px-3 py-2 font-semibold">
           Apply Preset
         </button>
         <div class="text-xs text-slate-400 flex items-center">Coverage is limited to Addis Ababa.</div>
       </div>
       <div class="mb-3 flex items-center gap-3 text-sm">
         <label for="mapPickTarget" class="text-slate-300">Map click fills:</label>
-        <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded px-3 py-2">
+        <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
           <option value="destination" selected>Destination</option>
           <option value="origin">Origin</option>
         </select>
       </div>
       <form id="destinationForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input id="originLat" type="number" step="any" placeholder="Origin latitude (optional)" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
-        <input id="originLon" type="number" step="any" placeholder="Origin longitude (optional)" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" />
+        <input id="originLat" type="number" step="any" placeholder="Origin latitude (optional)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" />
+        <input id="originLon" type="number" step="any" placeholder="Origin longitude (optional)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" />
         <div class="hidden md:block"></div>
-        <input id="destLat" type="number" step="any" placeholder="Destination latitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
-        <input id="destLon" type="number" step="any" placeholder="Destination longitude" class="bg-slate-800 border border-slate-700 rounded px-3 py-2" required />
-        <button id="planRouteBtn" class="bg-indigo-600 hover:bg-indigo-500 transition rounded px-4 py-2 font-semibold" type="submit">
+        <input id="destLat" type="number" step="any" placeholder="Destination latitude" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" required />
+        <input id="destLon" type="number" step="any" placeholder="Destination longitude" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" required />
+        <button id="planRouteBtn" class="bg-indigo-600 hover:bg-indigo-500 transition rounded-lg px-4 py-2 font-semibold" type="submit">
           Plan Route
         </button>
-        <button id="clearRouteBtn" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 transition rounded px-4 py-2 font-semibold" type="button">
+        <button id="clearRouteBtn" class="bg-slate-800 hover:bg-slate-700 border border-slate-650 transition rounded-lg px-4 py-2 font-semibold" type="button">
           Clear Route
         </button>
       </form>
@@ -139,8 +150,8 @@
       </p>
     </section>
 
-    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <h2 class="text-lg font-semibold mb-3">Timeline (15 / 30 / 60 min)</h2>
+    <section class="glass-panel rounded-2xl p-5 shadow-2xl">
+      <h2 class="text-lg font-bold mb-3 border-b border-white/5 pb-2 text-indigo-300">Timeline (15 / 30 / 60 min)</h2>
       <div id="timeline" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
     </section>
 

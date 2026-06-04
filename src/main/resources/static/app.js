@@ -79,7 +79,8 @@ const el = {
   originLat: document.getElementById("originLat"),
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
-  destLon: document.getElementById("destLon")
+  destLon: document.getElementById("destLon"),
+  followLocationToggle: document.getElementById("followLocationToggle")
 };
 
 init();
@@ -100,6 +101,16 @@ function initMap() {
   state.map.setMaxBounds(getAddisLeafletBounds());
   state.map.options.maxBoundsViscosity = 1.0;
   setMapStyle("dark");
+
+  const bounds = getAddisLeafletBounds();
+  L.rectangle(bounds, {
+    color: "#818cf8",
+    weight: 1.5,
+    fillColor: "#818cf8",
+    fillOpacity: 0.03,
+    dashArray: "4, 6",
+    interactive: false
+  }).addTo(state.map);
 
   state.map.on("click", (event) => {
     const lat = event.latlng.lat.toFixed(6);
@@ -1074,7 +1085,7 @@ function renderTimeline(current, predictions) {
   }
 
   el.timeline.innerHTML = predictions
-    .map((p) => {
+    .map((p, index) => {
       const pathPointText = p.source === "route"
         ? `Path point: ${p.pathLabel || "destination"}`
         : (state.current.speedMs > 0 ? "Path point: heading projection" : "Path point: stationary");
@@ -1083,13 +1094,16 @@ function renderTimeline(current, predictions) {
         : null;
 
       return `
-        <article class="rounded-lg bg-slate-800 border border-slate-700 p-3">
-          <h3 class="font-semibold">${p.minutesAhead} min</h3>
-          <p class="text-sm text-slate-300">Condition: ${p.condition}</p>
-          <p class="text-sm text-slate-300">Risk probability: ${p.precipitationProbability}%</p>
-          <p class="text-xs text-slate-500">Lat ${p.lat.toFixed(4)}, Lon ${p.lon.toFixed(4)}</p>
-          <p class="text-xs text-slate-500">${pathPointText}</p>
-          ${etaText ? `<p class="text-xs text-slate-500">${etaText}</p>` : ""}
+        <article onclick="focusTimelineCheckpoint(${index})" class="rounded-xl bg-slate-800 border border-slate-700 p-4 timeline-card cursor-pointer hover:border-indigo-500 transition-all duration-200 shadow-lg">
+          <h3 class="font-bold text-lg text-indigo-300 flex items-center justify-between">
+            <span>${p.minutesAhead} min</span>
+            <i class="fa-solid fa-crosshairs text-xs text-slate-400 opacity-60"></i>
+          </h3>
+          <p class="text-sm text-slate-200 mt-1">Condition: <span class="capitalize font-semibold text-slate-100">${p.condition}</span></p>
+          <p class="text-sm text-slate-300">Risk probability: <span class="font-mono font-semibold text-slate-100">${p.precipitationProbability}%</span></p>
+          <p class="text-xs text-slate-500 mt-2">Lat ${p.lat.toFixed(4)}, Lon ${p.lon.toFixed(4)}</p>
+          <p class="text-xs text-slate-400 mt-0.5">${pathPointText}</p>
+          ${etaText ? `<p class="text-xs text-indigo-400 mt-0.5">${etaText}</p>` : ""}
         </article>
       `;
     })
@@ -1102,6 +1116,14 @@ function renderTimelinePlaceholder(message) {
     `<p class="text-sm text-slate-300">${message}</p>` +
     `</article>`;
 }
+
+window.focusTimelineCheckpoint = function(index) {
+  const marker = state.futureMarkers[index];
+  if (marker) {
+    state.map.setView(marker.getLatLng(), 14);
+    marker.openPopup();
+  }
+};
 
 function renderFutureMarkers(predictions) {
   for (const marker of state.futureMarkers) {
@@ -1165,10 +1187,18 @@ function renderVibeCheck(predictions) {
 }
 
 function updateCurrentMarker() {
+  const heading = state.current.heading;
+  const showArrow = heading != null && state.current.speedMs > 0;
+
   const icon = L.divIcon({
-    html: '<div class="current-marker"></div>',
+    html: `
+      <div class="current-marker-container" style="transform: rotate(${showArrow ? heading : 0}deg);">
+        <div class="current-marker-dot"></div>
+        ${showArrow ? '<div class="current-marker-arrow"></div>' : ''}
+      </div>
+    `,
     className: "",
-    iconSize: [18, 18]
+    iconSize: [24, 24]
   });
 
   if (!state.currentMarker) {
@@ -1177,7 +1207,13 @@ function updateCurrentMarker() {
       state.map.setView([state.current.lat, state.current.lon], 13);
     }
   } else {
+    state.currentMarker.setIcon(icon);
     state.currentMarker.setLatLng([state.current.lat, state.current.lon]);
+
+    const shouldFollow = el.followLocationToggle && el.followLocationToggle.checked;
+    if (shouldFollow && isInsideCoverage(state.current.lat, state.current.lon)) {
+      state.map.setView([state.current.lat, state.current.lon]);
+    }
   }
 }
 
