@@ -708,6 +708,14 @@ function clearRoutePlan() {
   }
 
   clearRouteRiskLayers();
+
+  removeRoutePointMarker("origin");
+  removeRoutePointMarker("destination");
+
+  if (el.originLat) el.originLat.value = "";
+  if (el.originLon) el.originLon.value = "";
+  if (el.destLat) el.destLat.value = "";
+  if (el.destLon) el.destLon.value = "";
 }
 
 function renderRouteBase() {
@@ -731,36 +739,82 @@ function renderRouteBase() {
 function renderRouteRiskSegments(predictions) {
   clearRouteRiskLayers();
 
-  if (!state.route.destination || !predictions.length) {
+  if (!state.route.destination || !predictions.length || state.route.totalDistanceM <= 0) {
     return;
   }
 
-  const startPoint = getRouteStartPoint();
-  if (!startPoint) {
-    return;
-  }
+  const intervals = [0, 15, 30, 60];
 
-  const checkpoints = [
-    startPoint,
-    ...predictions.map((p) => ({ lat: p.lat, lon: p.lon }))
-  ];
+  for (let i = 1; i < intervals.length; i++) {
+    const startSec = intervals[i - 1] * 60;
+    const endSec = intervals[i] * 60;
 
-  for (let i = 1; i < checkpoints.length; i++) {
+    if (startSec >= state.route.totalDurationSec) {
+      break;
+    }
+
+    const startDistance = (Math.min(startSec, state.route.totalDurationSec) / state.route.totalDurationSec) * state.route.totalDistanceM;
+    const endDistance = (Math.min(endSec, state.route.totalDurationSec) / state.route.totalDurationSec) * state.route.totalDistanceM;
+
+    const segmentPoints = getRouteSegmentPoints(startDistance, endDistance);
+    if (segmentPoints.length < 2) {
+      continue;
+    }
+
     const segmentColor = markerColorForPrediction(predictions[i - 1]);
-    const layer = L.polyline(
-      [
-        [checkpoints[i - 1].lat, checkpoints[i - 1].lon],
-        [checkpoints[i].lat, checkpoints[i].lon]
-      ],
-      {
-        color: segmentColor,
-        weight: 5,
-        opacity: 0.9
-      }
-    ).addTo(state.map);
+    const latLngs = segmentPoints.map((p) => [p.lat, p.lon]);
+
+    const layer = L.polyline(latLngs, {
+      color: segmentColor,
+      weight: 5,
+      opacity: 0.9
+    }).addTo(state.map);
 
     state.routeRiskLayers.push(layer);
   }
+}
+
+function getRouteSegmentPoints(startDistance, endDistance) {
+  const points = state.route.geometry;
+  const distances = state.route.cumulativeDistancesM;
+  if (!points || points.length < 2 || !distances || distances.length !== points.length) {
+    return [];
+  }
+
+  const segment = [];
+  let started = false;
+
+  for (let i = 0; i < points.length; i++) {
+    const dist = distances[i];
+    if (!started) {
+      if (dist >= startDistance) {
+        if (i > 0 && startDistance > distances[i - 1]) {
+          const ratio = (startDistance - distances[i - 1]) / (dist - distances[i - 1]);
+          segment.push(interpolatePoint(points[i - 1], points[i], ratio));
+        } else {
+          segment.push(points[i]);
+        }
+        started = true;
+      }
+    } else {
+      if (dist >= endDistance) {
+        if (endDistance > distances[i - 1]) {
+          const ratio = (endDistance - distances[i - 1]) / (dist - distances[i - 1]);
+          segment.push(interpolatePoint(points[i - 1], points[i], ratio));
+        } else {
+          segment.push(points[i]);
+        }
+        break;
+      } else {
+        segment.push(points[i]);
+      }
+    }
+  }
+
+  if (segment.length === 0 && points.length > 0) {
+    segment.push(points[points.length - 1]);
+  }
+  return segment;
 }
 
 function getRouteStartPoint() {
@@ -782,9 +836,7 @@ function hasActiveOriginPoint() {
 }
 
 function hasLiveHeadingProjection() {
-  return state.current.lat != null &&
-    state.current.lon != null &&
-    state.current.heading != null;
+  return state.current.lat != null && state.current.lon != null;
 }
 
 function clearRouteRiskLayers() {
@@ -800,11 +852,12 @@ async function buildHeadingPredictionsBatch() {
 }
 
 function createHeadingCheckpoint(minutesAhead) {
+  const heading = state.current.heading != null ? state.current.heading : 0;
   const distanceKm = (state.current.speedMs * minutesAhead * 60) / 1000;
   const projected = projectCoordinate(
     state.current.lat,
     state.current.lon,
-    state.current.heading,
+    heading,
     distanceKm
   );
 
@@ -1024,7 +1077,7 @@ function renderTimeline(current, predictions) {
     .map((p) => {
       const pathPointText = p.source === "route"
         ? `Path point: ${p.pathLabel || "destination"}`
-        : "Path point: heading projection";
+        : (state.current.speedMs > 0 ? "Path point: heading projection" : "Path point: stationary");
       const etaText = p.source === "route" && p.etaMinutes != null
         ? `ETA from now: ${p.etaMinutes} min`
         : null;
@@ -1067,7 +1120,7 @@ function renderFutureMarkers(predictions) {
     const marker = L.marker([p.lat, p.lon], { icon }).addTo(state.map);
     const pathPoint = p.source === "route"
       ? `Path point: ${p.pathLabel || "destination"}<br>`
-      : "Path point: heading projection<br>";
+      : (state.current.speedMs > 0 ? "Path point: heading projection<br>" : "Path point: stationary<br>");
     marker.bindPopup(
       `${p.minutesAhead} min<br>${pathPoint}Condition: ${p.condition}<br>Chance: ${p.precipitationProbability}%`
     );
@@ -1120,11 +1173,12 @@ function updateCurrentMarker() {
 
   if (!state.currentMarker) {
     state.currentMarker = L.marker([state.current.lat, state.current.lon], { icon }).addTo(state.map);
+    if (isInsideCoverage(state.current.lat, state.current.lon)) {
+      state.map.setView([state.current.lat, state.current.lon], 13);
+    }
   } else {
     state.currentMarker.setLatLng([state.current.lat, state.current.lon]);
   }
-
-  state.map.setView([state.current.lat, state.current.lon], 13);
 }
 
 function renderLiveStatus() {
