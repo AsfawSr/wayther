@@ -125,12 +125,21 @@
         </button>
         <div class="text-xs text-slate-400 flex items-center">Coverage is limited to Addis Ababa.</div>
       </div>
-      <div class="mb-3 flex items-center gap-3 text-sm">
-        <label for="mapPickTarget" class="text-slate-300">Map click fills:</label>
-        <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-          <option value="destination" selected>Destination</option>
-          <option value="origin">Origin</option>
-        </select>
+      <div class="mb-3 flex flex-wrap items-center gap-6 text-sm">
+        <div class="flex items-center gap-3">
+          <label for="mapPickTarget" class="text-slate-300 font-medium">Map click fills:</label>
+          <select id="mapPickTarget" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+            <option value="destination" selected>Destination</option>
+            <option value="origin">Origin</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-3">
+          <label for="routeProfile" class="text-slate-300 font-medium">Travel Mode:</label>
+          <select id="routeProfile" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+            <option value="driving" selected>Car (Driving)</option>
+            <option value="foot">Walking (Footpath)</option>
+          </select>
+        </div>
       </div>
       <form id="destinationForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <input id="originLat" type="number" step="any" placeholder="Origin latitude (optional)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" />

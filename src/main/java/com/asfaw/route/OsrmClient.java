@@ -33,13 +33,18 @@ public class OsrmClient {
         this.osrmBaseUrl = osrmBaseUrl;
     }
 
-    public JsonNode fetchRoute(double originLat, double originLon, double destLat, double destLon) {
+    public JsonNode fetchRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
+        String safeProfile = "driving";
+        if (profile != null && (profile.equals("driving") || profile.equals("foot") || profile.equals("bicycle"))) {
+            safeProfile = profile;
+        }
+
         URI uri = UriComponentsBuilder
                 .fromHttpUrl(osrmBaseUrl)
-                .path("/route/v1/driving/{originLon},{originLat};{destLon},{destLat}")
+                .path("/route/v1/{profile}/{originLon},{originLat};{destLon},{destLat}")
                 .queryParam("overview", "full")
                 .queryParam("geometries", "geojson")
-                .buildAndExpand(originLon, originLat, destLon, destLat)
+                .buildAndExpand(safeProfile, originLon, originLat, destLon, destLat)
                 .toUri();
 
         try {

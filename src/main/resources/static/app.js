@@ -80,7 +80,8 @@ const el = {
   originLon: document.getElementById("originLon"),
   destLat: document.getElementById("destLat"),
   destLon: document.getElementById("destLon"),
-  followLocationToggle: document.getElementById("followLocationToggle")
+  followLocationToggle: document.getElementById("followLocationToggle"),
+  routeProfile: document.getElementById("routeProfile")
 };
 
 init();
@@ -321,6 +322,18 @@ function bindDestinationForm() {
     setRouteStatus("Route cleared. Forecast falls back to heading projection.");
     updateEverything();
   });
+
+  if (el.routeProfile) {
+    el.routeProfile.addEventListener("change", async () => {
+      if (state.route.destination) {
+        setRouteStatus("Recalculating route for selected travel mode...");
+        const ok = await planRouteFromCurrentLocation(true);
+        if (ok) {
+          await updateEverything();
+        }
+      }
+    });
+  }
 }
 
 function applyOriginSelection(lat, lon, statusMessage) {
@@ -1008,8 +1021,10 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 async function fetchOsrmRoute(origin, destination) {
+  const profile = (el.routeProfile && el.routeProfile.value) || "driving";
   const url =
-    `/api/route?originLat=${encodeURIComponent(origin.lat)}` +
+    `/api/route?profile=${encodeURIComponent(profile)}` +
+    `&originLat=${encodeURIComponent(origin.lat)}` +
     `&originLon=${encodeURIComponent(origin.lon)}` +
     `&destLat=${encodeURIComponent(destination.lat)}` +
     `&destLon=${encodeURIComponent(destination.lon)}`;

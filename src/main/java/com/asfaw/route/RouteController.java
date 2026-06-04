@@ -20,6 +20,7 @@ public class RouteController {
 
     @GetMapping("/route")
     public JsonNode route(
+            @RequestParam(defaultValue = "driving") String profile,
             @RequestParam double originLat,
             @RequestParam double originLon,
             @RequestParam double destLat,
@@ -27,7 +28,7 @@ public class RouteController {
     ) {
         coverageService.requireInsideAddis(originLat, originLon, "Origin");
         coverageService.requireInsideAddis(destLat, destLon, "Destination");
-        return routeService.getRoute(originLat, originLon, destLat, destLon);
+        return routeService.getRoute(profile, originLat, originLon, destLat, destLon);
     }
 }
 

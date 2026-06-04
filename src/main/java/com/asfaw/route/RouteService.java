@@ -21,8 +21,10 @@ public class RouteService {
         this.cacheTtlMs = cacheTtlMs;
     }
 
-    public JsonNode getRoute(double originLat, double originLon, double destLat, double destLon) {
-        String key = "route:%s:%s:%s:%s".formatted(
+    public JsonNode getRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
+        String safeProfile = (profile != null) ? profile : "driving";
+        String key = "route:%s:%s:%s:%s:%s".formatted(
+                safeProfile,
                 roundCoord(originLat),
                 roundCoord(originLon),
                 roundCoord(destLat),
@@ -35,7 +37,7 @@ public class RouteService {
             return existing.response;
         }
 
-        JsonNode response = osrmClient.fetchRoute(originLat, originLon, destLat, destLon);
+        JsonNode response = osrmClient.fetchRoute(safeProfile, originLat, originLon, destLat, destLon);
         cache.put(key, new CacheEntry(response, now + cacheTtlMs));
         return response;
     }
