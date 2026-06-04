@@ -58,7 +58,6 @@ const state = {
 
 const el = {
   speedKmh: document.getElementById("speedKmh"),
-  speedMs: document.getElementById("speedMs"),
   headingText: document.getElementById("headingText"),
   statusText: document.getElementById("statusText"),
   routeStatus: document.getElementById("routeStatus"),
@@ -112,6 +111,10 @@ function initMap() {
     dashArray: "4, 6",
     interactive: false
   }).addTo(state.map);
+
+  setTimeout(() => {
+    state.map.invalidateSize();
+  }, 100);
 
   state.map.on("click", (event) => {
     const lat = event.latlng.lat.toFixed(6);
@@ -1234,7 +1237,6 @@ function updateCurrentMarker() {
 
 function renderLiveStatus() {
   const kmh = state.current.speedMs * 3.6;
-  el.speedMs.textContent = state.current.speedMs.toFixed(2);
   el.speedKmh.textContent = kmh.toFixed(2);
   el.headingText.textContent = state.current.heading == null ? "N/A" : `${state.current.heading.toFixed(0)} deg`;
 }
