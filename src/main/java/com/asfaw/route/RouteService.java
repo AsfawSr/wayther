@@ -1,6 +1,5 @@
 package com.asfaw.route;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +20,7 @@ public class RouteService {
         this.cacheTtlMs = cacheTtlMs;
     }
 
-    public JsonNode getRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
+    public OsrmRouteResponse getRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
         String safeProfile = (profile != null) ? profile : "driving";
         String key = "route:%s:%s:%s:%s:%s".formatted(
                 safeProfile,
@@ -37,7 +36,7 @@ public class RouteService {
             return existing.response;
         }
 
-        JsonNode response = osrmClient.fetchRoute(safeProfile, originLat, originLon, destLat, destLon);
+        OsrmRouteResponse response = osrmClient.fetchRoute(safeProfile, originLat, originLon, destLat, destLon);
         cache.put(key, new CacheEntry(response, now + cacheTtlMs));
         return response;
     }
@@ -46,7 +45,6 @@ public class RouteService {
         return String.format("%.4f", value);
     }
 
-    private record CacheEntry(JsonNode response, long expiresAtMillis) {
+    private record CacheEntry(OsrmRouteResponse response, long expiresAtMillis) {
     }
 }
-

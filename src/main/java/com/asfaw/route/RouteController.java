@@ -1,6 +1,5 @@
 package com.asfaw.route;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.asfaw.geo.AddisCoverageService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +18,7 @@ public class RouteController {
     }
 
     @GetMapping("/route")
-    public JsonNode route(
+    public OsrmRouteResponse route(
             @RequestParam(defaultValue = "driving") String profile,
             @RequestParam double originLat,
             @RequestParam double originLon,
@@ -31,4 +30,3 @@ public class RouteController {
         return routeService.getRoute(profile, originLat, originLon, destLat, destLon);
     }
 }
-

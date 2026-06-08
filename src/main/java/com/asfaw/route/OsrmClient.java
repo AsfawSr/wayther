@@ -33,7 +33,7 @@ public class OsrmClient {
         this.osrmBaseUrl = osrmBaseUrl;
     }
 
-    public JsonNode fetchRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
+    public OsrmRouteResponse fetchRoute(String profile, double originLat, double originLon, double destLat, double destLon) {
         String safeProfile = "driving";
         if (profile != null && (profile.equals("driving") || profile.equals("foot") || profile.equals("bicycle"))) {
             safeProfile = profile;
@@ -48,7 +48,7 @@ public class OsrmClient {
                 .toUri();
 
         try {
-            JsonNode body = restTemplate.getForObject(uri, JsonNode.class);
+            OsrmRouteResponse body = restTemplate.getForObject(uri, OsrmRouteResponse.class);
             if (body == null) {
                 throw new RouteProviderException("OSRM response body is empty");
             }
@@ -88,4 +88,3 @@ public class OsrmClient {
         return responseBody;
     }
 }
-
