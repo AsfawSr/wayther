@@ -5,12 +5,15 @@ const HEADING_DELTA_DEG = 10;
 const ROUTE_REFRESH_MS = 60000;
 const ROUTE_ORIGIN_REFRESH_METERS = 200;
 const ADDIS_CENTER = { lat: 9.03, lon: 38.74 };
-const ADDIS_BOUNDS = {
-  minLat: 8.8,
-  maxLat: 9.2,
-  minLon: 38.6,
-  maxLon: 39.05
-};
+const coverageApi = window.WaytherCoverage;
+const geoMathApi = window.WaytherGeoMath;
+const backendApi = window.WaytherApi;
+
+if (!coverageApi || !geoMathApi || !backendApi) {
+  throw new Error("Required frontend modules failed to load.");
+}
+
+const ADDIS_BOUNDS = coverageApi.ADDIS_BOUNDS;
 const ADDIS_PRESETS = [
   { name: "Bole Airport", lat: 8.9806, lon: 38.7578 },
   { name: "Meskel Square", lat: 9.0370, lon: 38.7617 },
@@ -1027,84 +1030,24 @@ function interpolatePoint(a, b, ratio) {
 }
 
 function distanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const aa =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-  return R * c;
+  return geoMathApi.distanceMeters(lat1, lon1, lat2, lon2);
 }
 
 async function fetchOsrmRoute(origin, destination) {
   const profile = (el.routeProfile && el.routeProfile.value) || "driving";
-  const url =
-    `/api/route?profile=${encodeURIComponent(profile)}` +
-    `&originLat=${encodeURIComponent(origin.lat)}` +
-    `&originLon=${encodeURIComponent(origin.lon)}` +
-    `&destLat=${encodeURIComponent(destination.lat)}` +
-    `&destLon=${encodeURIComponent(destination.lon)}`;
-
-  const data = await fetchJson(url);
-  const route = data.routes && data.routes[0];
-
-  if (!route || !route.geometry || !Array.isArray(route.geometry.coordinates)) {
-    throw new Error("No route available from OSRM.");
-  }
-
-  return {
-    geometry: route.geometry.coordinates.map((coord) => ({ lon: coord[0], lat: coord[1] })),
-    totalDurationSec: Number(route.duration || 0),
-    totalDistanceM: Number(route.distance || 0)
-  };
+  return backendApi.fetchOsrmRoute(origin, destination, profile);
 }
 
 async function fetchCurrentWeather(lat, lon) {
-  const url =
-    `/api/weather/current?latitude=${encodeURIComponent(lat)}` +
-    `&longitude=${encodeURIComponent(lon)}`;
-
-  const data = await fetchJson(url);
-  return {
-    precipitationProbability: Number(data.precipitationProbability ?? 0),
-    weatherCode: Number(data.weatherCode ?? -1)
-  };
+  return backendApi.fetchCurrentWeather(lat, lon);
 }
 
 async function fetchFutureWeatherBatch(checkpoints) {
-  const body = checkpoints.map((checkpoint) => ({
-    latitude: checkpoint.lat,
-    longitude: checkpoint.lon,
-    targetIso: checkpoint.targetTime.toISOString()
-  }));
-
-  const data = await fetchJson("/api/weather/future/batch", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!Array.isArray(data)) {
-    throw new Error("Unexpected batch weather response shape");
-  }
-
-  return data.map((item) => ({
-    precipitationProbability: Number(item.precipitationProbability ?? 0),
-    weatherCode: Number(item.weatherCode ?? -1)
-  }));
+  return backendApi.fetchFutureWeatherBatch(checkpoints);
 }
 
 function mapWeatherCode(code) {
-  if (code === 0) return "clear";
-  if (code >= 1 && code <= 3) return "partly cloudy";
-  if (code >= 45 && code <= 48) return "fog";
-  if (code >= 51 && code <= 67) return "rain";
-  if (code >= 71 && code <= 77) return "snow";
-  return "unknown";
+  return backendApi.mapWeatherCode(code);
 }
 
 function renderTimeline(current, predictions) {
@@ -1292,74 +1235,27 @@ function markerColorForPrediction(prediction) {
 }
 
 function projectCoordinate(latDeg, lonDeg, bearingDeg, distanceKm) {
-  const R = 6371;
-  const lat1 = toRad(latDeg);
-  const lon1 = toRad(lonDeg);
-  const brng = toRad(normalizeHeading(bearingDeg));
-  const dOverR = distanceKm / R;
-
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(dOverR) +
-    Math.cos(lat1) * Math.sin(dOverR) * Math.cos(brng)
-  );
-
-  const lon2 = lon1 + Math.atan2(
-    Math.sin(brng) * Math.sin(dOverR) * Math.cos(lat1),
-    Math.cos(dOverR) - Math.sin(lat1) * Math.sin(lat2)
-  );
-
-  return {
-    lat: toDeg(lat2),
-    lon: normalizeLongitude(toDeg(lon2))
-  };
+  return geoMathApi.projectCoordinate(latDeg, lonDeg, bearingDeg, distanceKm);
 }
 
 function normalizeHeading(value) {
-  const n = Number.isFinite(value) ? value : 0;
-  return ((n % 360) + 360) % 360;
+  return geoMathApi.normalizeHeading(value);
 }
 
 function normalizeLongitude(value) {
-  return ((value + 540) % 360) - 180;
+  return geoMathApi.normalizeLongitude(value);
 }
 
 function toRad(deg) {
-  return (deg * Math.PI) / 180;
+  return geoMathApi.toRad(deg);
 }
 
 function toDeg(rad) {
-  return (rad * 180) / Math.PI;
+  return geoMathApi.toDeg(rad);
 }
 
 async function fetchJson(url, options = undefined) {
-  const response = await fetch(url, options);
-  const rawBody = await response.text();
-  let parsedBody = null;
-
-  if (rawBody) {
-    try {
-      parsedBody = JSON.parse(rawBody);
-    } catch (error) {
-      parsedBody = null;
-    }
-  }
-
-  if (!response.ok) {
-    const message =
-      (parsedBody && (parsedBody.message || parsedBody.detail || parsedBody.error)) ||
-      `Request failed (${response.status})`;
-    const requestError = new Error(message);
-    requestError.status = response.status;
-    requestError.code = parsedBody && parsedBody.code ? parsedBody.code : null;
-    requestError.payload = parsedBody;
-    throw requestError;
-  }
-
-  if (parsedBody != null) {
-    return parsedBody;
-  }
-
-  return null;
+  return backendApi.fetchJson(url, options);
 }
 
 function setStatus(text) {
@@ -1388,21 +1284,11 @@ function isSecureLocationContext() {
 }
 
 function isInsideCoverage(lat, lon) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return false;
-  }
-
-  return lat >= ADDIS_BOUNDS.minLat &&
-    lat <= ADDIS_BOUNDS.maxLat &&
-    lon >= ADDIS_BOUNDS.minLon &&
-    lon <= ADDIS_BOUNDS.maxLon;
+  return coverageApi.isInsideCoverage(lat, lon);
 }
 
 function getAddisLeafletBounds() {
-  return [
-    [ADDIS_BOUNDS.minLat, ADDIS_BOUNDS.minLon],
-    [ADDIS_BOUNDS.maxLat, ADDIS_BOUNDS.maxLon]
-  ];
+  return coverageApi.getAddisLeafletBounds();
 }
 
 async function getLocationPermissionState() {
