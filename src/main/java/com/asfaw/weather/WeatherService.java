@@ -32,7 +32,7 @@ public class WeatherService {
         return getOrLoad(key, () -> {
             try {
                 return openMeteoClient.fetchCurrent(latitude, longitude);
-            } catch (Exception ex) {
+            } catch (WeatherProviderException ex) {
                 return metNoClient.fetchCurrent(latitude, longitude);
             }
         });
@@ -48,7 +48,7 @@ public class WeatherService {
         return getOrLoad(key, () -> {
             try {
                 return openMeteoClient.fetchFutureNearest(latitude, longitude, targetTime);
-            } catch (Exception ex) {
+            } catch (WeatherProviderException ex) {
                 return metNoClient.fetchFutureNearest(latitude, longitude, targetTime);
             }
         });
@@ -88,4 +88,3 @@ public class WeatherService {
     private record CacheEntry(WeatherSnapshot snapshot, long expiresAtMillis) {
     }
 }
-

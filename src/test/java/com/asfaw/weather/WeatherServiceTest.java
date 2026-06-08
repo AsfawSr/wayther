@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -100,5 +102,33 @@ class WeatherServiceTest {
         assertEquals(expectedSnapshot, actual);
         verify(openMeteo, times(1)).fetchFutureNearest(9.02, 38.75, targetTime);
         verify(metNo, times(1)).fetchFutureNearest(9.02, 38.75, targetTime);
+    }
+
+    @Test
+    void getCurrent_doesNotFallbackOnUnexpectedRuntimeError() {
+        OpenMeteoClient openMeteo = mock(OpenMeteoClient.class);
+        MetNoClient metNo = mock(MetNoClient.class);
+
+        when(openMeteo.fetchCurrent(9.02, 38.75)).thenThrow(new IllegalStateException("Unexpected parser state"));
+
+        WeatherService service = new WeatherService(openMeteo, metNo, 10_000);
+
+        assertThrows(IllegalStateException.class, () -> service.getCurrent(9.02, 38.75));
+        verify(metNo, never()).fetchCurrent(9.02, 38.75);
+    }
+
+    @Test
+    void getFuture_doesNotFallbackOnUnexpectedRuntimeError() {
+        OpenMeteoClient openMeteo = mock(OpenMeteoClient.class);
+        MetNoClient metNo = mock(MetNoClient.class);
+        Instant targetTime = Instant.parse("2026-04-20T10:05:00Z");
+
+        when(openMeteo.fetchFutureNearest(9.02, 38.75, targetTime))
+                .thenThrow(new IllegalStateException("Unexpected parser state"));
+
+        WeatherService service = new WeatherService(openMeteo, metNo, 10_000);
+
+        assertThrows(IllegalStateException.class, () -> service.getFuture(9.02, 38.75, targetTime));
+        verify(metNo, never()).fetchFutureNearest(9.02, 38.75, targetTime);
     }
 }
