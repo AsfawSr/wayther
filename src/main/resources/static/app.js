@@ -83,11 +83,7 @@ const el = {
   destLat: document.getElementById("destLat"),
   destLon: document.getElementById("destLon"),
   followLocationToggle: document.getElementById("followLocationToggle"),
-  routeProfile: document.getElementById("routeProfile"),
-  simSpeedSlider: document.getElementById("simSpeedSlider"),
-  simSpeedVal: document.getElementById("simSpeedVal"),
-  saveTripBtn: document.getElementById("saveTripBtn"),
-  savedTripsList: document.getElementById("savedTripsList")
+  routeProfile: document.getElementById("routeProfile")
 };
 
 init();
@@ -98,8 +94,7 @@ function init() {
   bindQuickActions();
   bindRetryGeolocation();
   bindDestinationForm();
-  bindSpeedSimulator();
-  bindSavedTrips();
+  bindTimelineInteractions();
   renderTimelinePlaceholder("Enable geolocation or enter origin/destination to see 15/30/60 minute forecasts.");
   startGeoWatch();
   startScheduledUpdates();
@@ -487,14 +482,7 @@ function onPosition(position) {
   state.current.lon = coords.longitude;
 
   const realSpeed = Number.isFinite(coords.speed) ? Math.max(0, coords.speed) : 0;
-  state.last.realSpeedMs = realSpeed;
-
-  const simVal = el.simSpeedSlider ? Number(el.simSpeedSlider.value) : 0;
-  if (simVal === 0) {
-    state.current.speedMs = realSpeed;
-  } else {
-    state.current.speedMs = simVal / 3.6;
-  }
+  state.current.speedMs = realSpeed;
 
   if (Number.isFinite(coords.heading)) {
     state.current.heading = normalizeHeading(coords.heading);
@@ -560,7 +548,7 @@ function onPositionError(error) {
 
 function startScheduledUpdates() {
   state.intervalId = setInterval(() => {
-    if (!hasActiveOriginPoint()) {
+    if (!getRouteStartPoint()) {
       return;
     }
     updateEverything();
@@ -572,7 +560,7 @@ async function updateEverything() {
     return;
   }
 
-  const activeOrigin = getActiveOriginPoint();
+  const activeOrigin = getRouteStartPoint();
   if (!activeOrigin) {
     renderTimelinePlaceholder("No active origin yet. Add origin/destination or allow geolocation to start forecasting.");
     return;
@@ -872,13 +860,6 @@ function getRouteStartPoint() {
   return null;
 }
 
-function getActiveOriginPoint() {
-  return getRouteStartPoint();
-}
-
-function hasActiveOriginPoint() {
-  return getActiveOriginPoint() != null;
-}
 
 function hasLiveHeadingProjection() {
   return state.current.lat != null && state.current.lon != null;
@@ -1070,7 +1051,7 @@ function renderTimeline(current, predictions) {
         : null;
 
       return `
-        <article onclick="focusTimelineCheckpoint(${index})" class="rounded-xl bg-slate-800 border border-slate-700 p-4 timeline-card cursor-pointer hover:border-indigo-500 transition-all duration-200 shadow-lg">
+        <article data-checkpoint-index="${index}" class="rounded-xl bg-slate-800 border border-slate-700 p-4 timeline-card cursor-pointer hover:border-indigo-500 transition-all duration-200 shadow-lg">
           <h3 class="font-bold text-lg text-indigo-300 flex items-center justify-between">
             <span>${p.minutesAhead} min</span>
             <i class="fa-solid fa-crosshairs text-xs text-slate-400 opacity-60"></i>
@@ -1086,6 +1067,26 @@ function renderTimeline(current, predictions) {
     .join("");
 }
 
+function bindTimelineInteractions() {
+  if (!el.timeline) {
+    return;
+  }
+
+  el.timeline.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-checkpoint-index]");
+    if (!card) {
+      return;
+    }
+
+    const index = Number(card.getAttribute("data-checkpoint-index"));
+    if (!Number.isInteger(index)) {
+      return;
+    }
+
+    focusTimelineCheckpoint(index);
+  });
+}
+
 function renderTimelinePlaceholder(message) {
   el.timeline.innerHTML =
     `<article class="rounded-lg bg-slate-800 border border-slate-700 p-3 md:col-span-3">` +
@@ -1093,13 +1094,13 @@ function renderTimelinePlaceholder(message) {
     `</article>`;
 }
 
-window.focusTimelineCheckpoint = function(index) {
+function focusTimelineCheckpoint(index) {
   const marker = state.futureMarkers[index];
   if (marker) {
     state.map.setView(marker.getLatLng(), 14);
     marker.openPopup();
   }
-};
+}
 
 function renderFutureMarkers(predictions) {
   for (const marker of state.futureMarkers) {
@@ -1242,22 +1243,6 @@ function normalizeHeading(value) {
   return geoMathApi.normalizeHeading(value);
 }
 
-function normalizeLongitude(value) {
-  return geoMathApi.normalizeLongitude(value);
-}
-
-function toRad(deg) {
-  return geoMathApi.toRad(deg);
-}
-
-function toDeg(rad) {
-  return geoMathApi.toDeg(rad);
-}
-
-async function fetchJson(url, options = undefined) {
-  return backendApi.fetchJson(url, options);
-}
-
 function setStatus(text) {
   el.statusText.textContent = text;
 }
@@ -1304,129 +1289,4 @@ async function getLocationPermissionState() {
   }
 }
 
-function bindSpeedSimulator() {
-  if (!el.simSpeedSlider || !el.simSpeedVal) return;
-
-  const updateSimulatedSpeed = () => {
-    const val = Number(el.simSpeedSlider.value);
-    if (val === 0) {
-      el.simSpeedVal.textContent = "Real GPS";
-      state.current.speedMs = state.last.realSpeedMs || 0;
-    } else {
-      el.simSpeedVal.textContent = `${val} km/h`;
-      state.current.speedMs = val / 3.6;
-      if (state.current.lat != null && state.current.heading == null) {
-        state.current.heading = 0;
-      }
-    }
-    renderLiveStatus();
-    updateEverything();
-  };
-
-  el.simSpeedSlider.addEventListener("input", updateSimulatedSpeed);
-  el.simSpeedSlider.addEventListener("change", updateSimulatedSpeed);
-}
-
-function bindSavedTrips() {
-  if (!el.saveTripBtn || !el.savedTripsList) return;
-
-  const loadSavedTrips = () => {
-    try {
-      return JSON.parse(localStorage.getItem("skypath_trips")) || [];
-    } catch (e) {
-      return [];
-    }
-  };
-
-  const saveTrips = (trips) => {
-    localStorage.setItem("skypath_trips", JSON.stringify(trips));
-  };
-
-  const renderSavedTripsList = () => {
-    const trips = loadSavedTrips();
-    if (trips.length === 0) {
-      el.savedTripsList.innerHTML = '<li class="text-[11px] text-slate-500 italic">No saved trips yet.</li>';
-      return;
-    }
-
-    el.savedTripsList.innerHTML = trips.map((trip, idx) => {
-      const originText = trip.origin ? `${trip.origin.lat.toFixed(4)}, ${trip.origin.lon.toFixed(4)}` : "Live Location";
-      const destText = `${trip.dest.lat.toFixed(4)}, ${trip.dest.lon.toFixed(4)}`;
-      const modeText = trip.profile === "foot" ? "Walk" : "Car";
-      
-      return `
-        <li class="bg-slate-800/60 hover:bg-slate-800 border border-white/5 hover:border-indigo-500/50 p-2 rounded-lg flex items-center justify-between gap-2 transition duration-200">
-          <div class="flex-grow cursor-pointer" onclick="loadSavedTrip(${idx})">
-            <div class="font-semibold text-slate-200 text-[11px] flex items-center gap-1.5">
-              <i class="fa-solid ${trip.profile === 'foot' ? 'fa-person-walking text-cyan-400' : 'fa-car text-indigo-400'} text-[10px]"></i>
-              <span>To: ${destText}</span>
-            </div>
-            <div class="text-[9px] text-slate-400">From: ${originText}</div>
-          </div>
-          <button type="button" onclick="deleteSavedTrip(${idx}); event.stopPropagation();" class="text-slate-500 hover:text-red-400 p-1 transition">
-            <i class="fa-solid fa-trash-can text-[10px]"></i>
-          </button>
-        </li>
-      `;
-    }).join("");
-  };
-
-  window.loadSavedTrip = async (idx) => {
-    const trips = loadSavedTrips();
-    const trip = trips[idx];
-    if (!trip) return;
-
-    if (trip.origin) {
-      applyOriginSelection(trip.origin.lat, trip.origin.lon, null);
-    } else {
-      state.route.originOverride = null;
-      removeRoutePointMarker("origin");
-      if (el.originLat) el.originLat.value = "";
-      if (el.originLon) el.originLon.value = "";
-    }
-
-    applyDestinationSelection(trip.dest.lat, trip.dest.lon, null);
-
-    if (el.routeProfile) {
-      el.routeProfile.value = trip.profile || "driving";
-    }
-
-    setRouteStatus(`Loading saved trip: ${trip.profile === "foot" ? "Walking" : "Driving"}...`);
-    const ok = await planRouteFromCurrentLocation(true);
-    if (ok) {
-      await updateEverything();
-    }
-  };
-
-  window.deleteSavedTrip = (idx) => {
-    const trips = loadSavedTrips();
-    trips.splice(idx, 1);
-    saveTrips(trips);
-    renderSavedTripsList();
-  };
-
-  el.saveTripBtn.addEventListener("click", () => {
-    if (!state.route.destination) {
-      setRouteStatus("Set a destination before saving!");
-      return;
-    }
-
-    const trips = loadSavedTrips();
-    const profile = (el.routeProfile && el.routeProfile.value) || "driving";
-    
-    const newTrip = {
-      dest: { lat: state.route.destination.lat, lon: state.route.destination.lon },
-      origin: state.route.originOverride ? { lat: state.route.originOverride.lat, lon: state.route.originOverride.lon } : null,
-      profile: profile,
-      timestamp: Date.now()
-    };
-
-    trips.unshift(newTrip);
-    saveTrips(trips);
-    renderSavedTripsList();
-    setRouteStatus("Trip saved successfully.");
-  });
-
-  renderSavedTripsList();
-}
 
