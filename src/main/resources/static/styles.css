@@ -223,3 +223,60 @@ details[open] > summary::after {
   100% { transform: translateX(0); }
 }
 
+/* Floating Map Legend */
+.map-legend {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.4;
+  margin: 10px !important;
+  pointer-events: auto;
+}
+
+.legend-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+}
+
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, 0.6);
+  display: inline-block;
+}
+
+.legend-color.safe {
+  background: #facc15;
+}
+
+.legend-color.caution {
+  background: #fb923c;
+}
+
+.legend-color.alert {
+  background: #ef4444;
+}
+
+.legend-color.fog {
+  background: #a78bfa;
+}
+

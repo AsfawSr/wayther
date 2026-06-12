@@ -105,6 +105,7 @@ function initMap() {
   state.map.setMaxBounds(getAddisLeafletBounds());
   state.map.options.maxBoundsViscosity = 1.0;
   setMapStyle("dark");
+  addMapLegend();
 
   const bounds = getAddisLeafletBounds();
   L.rectangle(bounds, {
@@ -1317,6 +1318,37 @@ async function getLocationPermissionState() {
   } catch (error) {
     return "unknown";
   }
+}
+
+function addMapLegend() {
+  if (!state.map) return;
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = function () {
+    const div = L.DomUtil.create("div", "map-legend glass-panel");
+    div.innerHTML = `
+      <h4 class="legend-title">Weather Risk</h4>
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-color safe"></span>
+          <span>Low / Safe</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color caution"></span>
+          <span>Caution</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color alert"></span>
+          <span>High / Alert</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color fog"></span>
+          <span>Fog Risk</span>
+        </div>
+      </div>
+    `;
+    return div;
+  };
+  legend.addTo(state.map);
 }
 
 
