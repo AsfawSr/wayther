@@ -55,7 +55,7 @@ public class WeatherService {
     }
 
     public List<WeatherSnapshot> getFutureBatch(List<FutureWeatherCheckpoint> checkpoints) {
-        return checkpoints.stream()
+        return checkpoints.parallelStream()
                 .map(checkpoint -> getFuture(
                         checkpoint.latitude(),
                         checkpoint.longitude(),
