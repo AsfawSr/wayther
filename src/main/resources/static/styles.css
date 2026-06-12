@@ -38,47 +38,108 @@ body {
   transition: transform 0.2s ease;
 }
 
-.future-marker {
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  border: 2px solid #1e293b;
-}
-
-.future-low {
-  background: #facc15;
-}
-
-.future-mid {
-  background: #fb923c;
-}
-
-.future-high {
-  background: #ef4444;
-}
-
-.future-fog {
-  background: #a78bfa;
-}
-
-.future-fog-high {
-  background: #7c3aed;
-}
-
-.route-point {
-  width: 18px;
-  height: 18px;
+/* Route Markers */
+.route-marker {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9999px;
   border: 2px solid #0f172a;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.55);
+  color: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.route-point-origin {
-  background: #22c55e;
+.route-marker:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
 }
 
-.route-point-destination {
-  background: #f97316;
+.route-marker-origin {
+  background: linear-gradient(135deg, #22c55e, #15803d);
+}
+
+.route-marker-destination {
+  background: linear-gradient(135deg, #f97316, #c2410c);
+}
+
+/* Future Markers with Weather Badges */
+.future-marker-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.future-marker-badge {
+  position: absolute;
+  top: -10px;
+  background-color: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 0.5px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.future-marker-icon-wrapper {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #0f172a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.future-marker-icon-wrapper:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* Prediction Colors/Glows */
+.future-marker-icon-wrapper.future-low {
+  background: linear-gradient(135deg, #fef08a, #facc15);
+  color: #713f12;
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.4), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.future-marker-icon-wrapper.future-mid {
+  background: linear-gradient(135deg, #fed7aa, #fb923c);
+  color: #7c2d12;
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.4), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.future-marker-icon-wrapper.future-high {
+  background: linear-gradient(135deg, #fecaca, #ef4444);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.future-marker-icon-wrapper.future-fog {
+  background: linear-gradient(135deg, #ddd6fe, #a78bfa);
+  color: #4c1d95;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.4), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.future-marker-icon-wrapper.future-fog-high {
+  background: linear-gradient(135deg, #c084fc, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .warning-box {

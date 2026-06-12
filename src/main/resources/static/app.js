@@ -383,12 +383,16 @@ function applyDestinationSelection(lat, lon, statusMessage) {
 
 function upsertRoutePointMarker(kind, lat, lon) {
   const markerRef = kind === "origin" ? "originMarker" : "destinationMarker";
-  const cssClass = kind === "origin" ? "route-point-origin" : "route-point-destination";
+  const isOrigin = kind === "origin";
+  const iconHtml = isOrigin
+    ? `<div class="route-marker route-marker-origin"><i class="fa-solid fa-location-dot"></i></div>`
+    : `<div class="route-marker route-marker-destination"><i class="fa-solid fa-flag-checkered"></i></div>`;
 
   const icon = L.divIcon({
-    html: `<div class="route-point ${cssClass}"></div>`,
+    html: iconHtml,
     className: "",
-    iconSize: [18, 18]
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
   });
 
   if (!state[markerRef]) {
@@ -1102,6 +1106,23 @@ function focusTimelineCheckpoint(index) {
   }
 }
 
+function weatherIconForCondition(condition) {
+  switch (condition) {
+    case "clear":
+      return "fa-sun";
+    case "partly cloudy":
+      return "fa-cloud-sun";
+    case "fog":
+      return "fa-smog";
+    case "rain":
+      return "fa-cloud-showers-heavy";
+    case "snow":
+      return "fa-snowflake";
+    default:
+      return "fa-cloud";
+  }
+}
+
 function renderFutureMarkers(predictions) {
   for (const marker of state.futureMarkers) {
     state.map.removeLayer(marker);
@@ -1110,10 +1131,19 @@ function renderFutureMarkers(predictions) {
 
   for (const p of predictions) {
     const riskClass = markerClassForPrediction(p);
+    const weatherIconClass = weatherIconForCondition(p.condition);
     const icon = L.divIcon({
-      html: `<div class="future-marker ${riskClass}"></div>`,
+      html: `
+        <div class="future-marker-container">
+          <div class="future-marker-badge">${p.minutesAhead}m</div>
+          <div class="future-marker-icon-wrapper ${riskClass}">
+            <i class="fa-solid ${weatherIconClass}"></i>
+          </div>
+        </div>
+      `,
       className: "",
-      iconSize: [14, 14]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
     const marker = L.marker([p.lat, p.lon], { icon }).addTo(state.map);
@@ -1121,7 +1151,7 @@ function renderFutureMarkers(predictions) {
       ? `Path point: ${p.pathLabel || "destination"}<br>`
       : (state.current.speedMs > 0 ? "Path point: heading projection<br>" : "Path point: stationary<br>");
     marker.bindPopup(
-      `${p.minutesAhead} min<br>${pathPoint}Condition: ${p.condition}<br>Chance: ${p.precipitationProbability}%`
+      `<b>${p.minutesAhead} min forecast</b><br>${pathPoint}Condition: <span class="capitalize font-semibold">${p.condition}</span><br>Chance: ${p.precipitationProbability}%`
     );
     state.futureMarkers.push(marker);
   }
