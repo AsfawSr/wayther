@@ -172,11 +172,15 @@
         <section class="glass-panel rounded-2xl p-5 shadow-2xl flex-grow">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3 relative z-20">
             <h2 class="text-lg font-bold text-indigo-300">Map View</h2>
-            <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden text-sm">
+          </div>
+          <div class="relative w-full h-[550px]">
+            <div id="map" class="w-full h-full rounded-xl overflow-hidden border border-slate-800 relative z-0"></div>
+            <!-- Floating Style Toggle Widget -->
+            <div class="absolute top-3 right-3 z-[1000] inline-flex rounded-lg border border-slate-800/80 overflow-hidden text-[10px] p-0.5 gap-0.5 bg-slate-950/85 backdrop-blur-md shadow-2xl">
               <button
                 id="mapStyleDark"
                 type="button"
-                class="bg-indigo-600 text-white px-3 py-1 font-semibold transition cursor-pointer select-none text-xs"
+                class="bg-indigo-600 text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider"
                 aria-pressed="true"
               >
                 Dark
@@ -184,14 +188,13 @@
               <button
                 id="mapStyleSatellite"
                 type="button"
-                class="bg-slate-800 text-slate-200 px-3 py-1 font-semibold transition cursor-pointer select-none text-xs"
+                class="bg-transparent text-slate-400 hover:text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider"
                 aria-pressed="false"
               >
                 Satellite
               </button>
             </div>
           </div>
-          <div id="map" class="w-full h-[550px] rounded-xl overflow-hidden border border-slate-800 relative z-0"></div>
         </section>
 
         <!-- Timeline panel -->

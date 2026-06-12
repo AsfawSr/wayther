@@ -258,16 +258,16 @@ function updateMapStyleToggleUi() {
   if (el.mapStyleDark) {
     const darkActive = state.mapStyle === "dark";
     el.mapStyleDark.className = darkActive
-      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition cursor-pointer select-none"
-      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition cursor-pointer select-none";
+      ? "bg-indigo-600 text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider"
+      : "bg-transparent text-slate-400 hover:text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider";
     el.mapStyleDark.setAttribute("aria-pressed", String(darkActive));
   }
 
   if (el.mapStyleSatellite) {
     const satActive = state.mapStyle === "satellite";
     el.mapStyleSatellite.className = satActive
-      ? "bg-indigo-600 text-white px-3 py-1.5 font-semibold transition cursor-pointer select-none"
-      : "bg-slate-800 text-slate-200 px-3 py-1.5 font-semibold transition cursor-pointer select-none";
+      ? "bg-indigo-600 text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider"
+      : "bg-transparent text-slate-400 hover:text-white px-2.5 py-1 rounded font-bold transition cursor-pointer select-none uppercase tracking-wider";
     el.mapStyleSatellite.setAttribute("aria-pressed", String(satActive));
   }
 }
