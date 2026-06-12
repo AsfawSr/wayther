@@ -1090,6 +1090,30 @@ function bindTimelineInteractions() {
 
     focusTimelineCheckpoint(index);
   });
+
+  el.timeline.addEventListener("mouseover", (event) => {
+    const card = event.target.closest("[data-checkpoint-index]");
+    if (!card) {
+      return;
+    }
+
+    const index = Number(card.getAttribute("data-checkpoint-index"));
+    if (Number.isInteger(index)) {
+      highlightMapMarker(index, true);
+    }
+  });
+
+  el.timeline.addEventListener("mouseout", (event) => {
+    const card = event.target.closest("[data-checkpoint-index]");
+    if (!card) {
+      return;
+    }
+
+    const index = Number(card.getAttribute("data-checkpoint-index"));
+    if (Number.isInteger(index)) {
+      highlightMapMarker(index, false);
+    }
+  });
 }
 
 function renderTimelinePlaceholder(message) {
@@ -1104,6 +1128,29 @@ function focusTimelineCheckpoint(index) {
   if (marker) {
     state.map.setView(marker.getLatLng(), 14);
     marker.openPopup();
+  }
+}
+
+function highlightMapMarker(index, highlight) {
+  const marker = state.futureMarkers[index];
+  if (!marker) return;
+  const element = marker.getElement();
+  if (!element) return;
+  if (highlight) {
+    element.classList.add("marker-highlight");
+  } else {
+    element.classList.remove("marker-highlight");
+  }
+}
+
+function highlightTimelineCard(index, highlight) {
+  if (!el.timeline) return;
+  const card = el.timeline.querySelector(`[data-checkpoint-index="${index}"]`);
+  if (!card) return;
+  if (highlight) {
+    card.classList.add("timeline-highlight");
+  } else {
+    card.classList.remove("timeline-highlight");
   }
 }
 
@@ -1130,7 +1177,7 @@ function renderFutureMarkers(predictions) {
   }
   state.futureMarkers = [];
 
-  for (const p of predictions) {
+  predictions.forEach((p, index) => {
     const riskClass = markerClassForPrediction(p);
     const weatherIconClass = weatherIconForCondition(p.condition);
     const icon = L.divIcon({
@@ -1151,11 +1198,23 @@ function renderFutureMarkers(predictions) {
     const pathPoint = p.source === "route"
       ? `Path point: ${p.pathLabel || "destination"}<br>`
       : (state.current.speedMs > 0 ? "Path point: heading projection<br>" : "Path point: stationary<br>");
+    
     marker.bindPopup(
       `<b>${p.minutesAhead} min forecast</b><br>${pathPoint}Condition: <span class="capitalize font-semibold">${p.condition}</span><br>Chance: ${p.precipitationProbability}%`
     );
+
+    marker.on("mouseover", () => {
+      highlightTimelineCard(index, true);
+      highlightMapMarker(index, true);
+    });
+
+    marker.on("mouseout", () => {
+      highlightTimelineCard(index, false);
+      highlightMapMarker(index, false);
+    });
+
     state.futureMarkers.push(marker);
-  }
+  });
 }
 
 function renderVibeCheck(predictions) {
