@@ -108,12 +108,35 @@ function initMap() {
   addMapLegend();
 
   const bounds = getAddisLeafletBounds();
+
+  // Draw semi-transparent slate mask outside coverage area
+  const outerCoords = [
+    [-90, -180],
+    [-90, 180],
+    [90, 180],
+    [90, -180]
+  ];
+  const innerCoords = [
+    [ADDIS_BOUNDS.minLat, ADDIS_BOUNDS.minLon],
+    [ADDIS_BOUNDS.maxLat, ADDIS_BOUNDS.minLon],
+    [ADDIS_BOUNDS.maxLat, ADDIS_BOUNDS.maxLon],
+    [ADDIS_BOUNDS.minLat, ADDIS_BOUNDS.maxLon]
+  ];
+  L.polygon([outerCoords, innerCoords], {
+    color: "transparent",
+    weight: 0,
+    fillColor: "#020617",
+    fillOpacity: 0.65,
+    interactive: false
+  }).addTo(state.map);
+
+  // Draw glowing dashed coverage boundary
   L.rectangle(bounds, {
-    color: "#818cf8",
-    weight: 1.5,
-    fillColor: "#818cf8",
-    fillOpacity: 0.03,
-    dashArray: "4, 6",
+    color: "#6366f1",
+    weight: 2,
+    dashArray: "6, 8",
+    fillColor: "transparent",
+    className: "coverage-border",
     interactive: false
   }).addTo(state.map);
 

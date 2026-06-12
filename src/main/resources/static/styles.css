@@ -294,3 +294,9 @@ details[open] > summary::after {
   transform: translateY(-4px);
 }
 
+/* Glowing Coverage Area Border */
+.coverage-border {
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
+  stroke-linejoin: round;
+}
+
