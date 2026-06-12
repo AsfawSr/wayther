@@ -300,3 +300,27 @@ details[open] > summary::after {
   stroke-linejoin: round;
 }
 
+/* Custom Leaflet Tooltip */
+.leaflet-tooltip.segment-tooltip-container {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  padding: 8px 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+  color: #f1f5f9 !important;
+  font-family: Outfit, Inter, system-ui, -apple-system, sans-serif !important;
+}
+
+.leaflet-tooltip-top.segment-tooltip-container::before,
+.leaflet-tooltip-bottom.segment-tooltip-container::before,
+.leaflet-tooltip-left.segment-tooltip-container::before,
+.leaflet-tooltip-right.segment-tooltip-container::before {
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  display: none !important;
+}
+

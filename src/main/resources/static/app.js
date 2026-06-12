@@ -822,14 +822,55 @@ function renderRouteRiskSegments(predictions) {
       continue;
     }
 
-    const segmentColor = markerColorForPrediction(predictions[i - 1]);
-    const latLngs = segmentPoints.map((p) => [p.lat, p.lon]);
+    const p = predictions[i - 1];
+    const segmentColor = markerColorForPrediction(p);
+    const latLngs = segmentPoints.map((pt) => [pt.lat, pt.lon]);
 
     const layer = L.polyline(latLngs, {
       color: segmentColor,
       weight: 5,
       opacity: 0.9
     }).addTo(state.map);
+
+    // Bind interactive tooltip
+    const segmentStart = intervals[i - 1];
+    const segmentEnd = intervals[i];
+    const tooltipText = `
+      <div class="route-segment-tooltip">
+        <div class="font-bold text-indigo-300 text-[11px] uppercase tracking-wider">${segmentStart} - ${segmentEnd} min segment</div>
+        <div class="text-xs text-slate-100 mt-1.5 capitalize flex items-center justify-between gap-4">
+          <span>Condition:</span>
+          <span class="font-semibold text-white">${p.condition}</span>
+        </div>
+        <div class="text-xs text-slate-100 mt-0.5 flex items-center justify-between gap-4">
+          <span>Risk:</span>
+          <span class="font-semibold text-white">${p.precipitationProbability}%</span>
+        </div>
+      </div>
+    `;
+    layer.bindTooltip(tooltipText, {
+      sticky: true,
+      className: "segment-tooltip-container"
+    });
+
+    // Add hover highlighting and interactive links
+    layer.on("mouseover", () => {
+      layer.setStyle({
+        weight: 8,
+        opacity: 1.0
+      });
+      highlightTimelineCard(i - 1, true);
+      highlightMapMarker(i - 1, true);
+    });
+
+    layer.on("mouseout", () => {
+      layer.setStyle({
+        weight: 5,
+        opacity: 0.9
+      });
+      highlightTimelineCard(i - 1, false);
+      highlightMapMarker(i - 1, false);
+    });
 
     state.routeRiskLayers.push(layer);
   }
