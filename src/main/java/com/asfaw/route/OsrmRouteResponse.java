@@ -8,7 +8,8 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OsrmRouteResponse(
         @JsonProperty("code") String code,
-        @JsonProperty("routes") List<OsrmRoute> routes
+        @JsonProperty("routes") List<OsrmRoute> routes,
+        @JsonProperty("waypoints") List<OsrmWaypoint> waypoints
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record OsrmRoute(
@@ -22,6 +23,13 @@ public record OsrmRouteResponse(
     public record OsrmGeometry(
             @JsonProperty("type") String type,
             @JsonProperty("coordinates") List<List<Double>> coordinates
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record OsrmWaypoint(
+            @JsonProperty("name") String name,
+            @JsonProperty("location") List<Double> location
     ) {
     }
 }

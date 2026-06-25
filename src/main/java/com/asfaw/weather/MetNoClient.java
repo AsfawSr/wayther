@@ -71,7 +71,7 @@ public class MetNoClient implements WeatherClient {
         JsonNode timeseries = root.path("properties").path("timeseries");
 
         if (!timeseries.isArray() || timeseries.isEmpty()) {
-            return new WeatherSnapshot(0.0, -1);
+            return buildSnapshot(latitude, longitude, Instant.now(), 0.0, -1);
         }
 
         int bestIndex = 0;
@@ -138,9 +138,9 @@ public class MetNoClient implements WeatherClient {
         }
     }
 
-    private WeatherSnapshot mapMetNoSymbol(String symbolCode) {
+    private WeatherSnapshot mapMetNoSymbol(double latitude, double longitude, String symbolCode) {
         if (symbolCode == null || symbolCode.isBlank()) {
-            return new WeatherSnapshot(0.0, -1);
+            return buildSnapshot(latitude, longitude, Instant.now(), 0.0, -1);
         }
 
         String cleanSymbol = symbolCode.toLowerCase().split("_")[0];
@@ -168,6 +168,45 @@ public class MetNoClient implements WeatherClient {
             probability = 0.0;
         }
 
-        return new WeatherSnapshot(probability, weatherCode);
+        return buildSnapshot(latitude, longitude, Instant.now(), probability, weatherCode);
+    }
+
+    private WeatherSnapshot buildSnapshot(double latitude, double longitude, Instant timestamp, double precipitationProbability, int weatherCode) {
+        String condition = mapWeatherCodeToCondition(weatherCode);
+        double temperature = 24.0;
+        double windSpeed = 8.0;
+        String weatherIcon = mapWeatherCodeToIcon(weatherCode);
+        return new WeatherSnapshot(
+                latitude,
+                longitude,
+                timestamp,
+                condition,
+                temperature,
+                windSpeed,
+                precipitationProbability,
+                weatherIcon
+        );
+    }
+
+    private String mapWeatherCodeToCondition(int weatherCode) {
+        return switch (weatherCode) {
+            case 0 -> "Clear";
+            case 1, 2, 3 -> "Partly cloudy";
+            case 45, 48 -> "Fog";
+            case 51, 53, 55, 61, 63, 65, 80, 81, 82 -> "Rain";
+            case 71, 73, 75, 77 -> "Snow";
+            default -> "Clear";
+        };
+    }
+
+    private String mapWeatherCodeToIcon(int weatherCode) {
+        return switch (weatherCode) {
+            case 0 -> "☀️";
+            case 1, 2, 3 -> "⛅";
+            case 45, 48 -> "🌫️";
+            case 51, 53, 55, 61, 63, 65, 80, 81, 82 -> "🌧️";
+            case 71, 73, 75, 77 -> "❄️";
+            default -> "☀️";
+        };
     }
 }
