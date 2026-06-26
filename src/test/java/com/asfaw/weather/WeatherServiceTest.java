@@ -18,7 +18,7 @@ class WeatherServiceTest {
     void getCurrent_usesCacheWithinTtl() {
         OpenMeteoClient client = mock(OpenMeteoClient.class);
         MetNoClient metNoClient = mock(MetNoClient.class);
-        WeatherSnapshot snapshot = new WeatherSnapshot(12.0, 1);
+        WeatherSnapshot snapshot = snapshot(12.0, 1);
         when(client.fetchCurrent(9.02, 38.75)).thenReturn(snapshot);
 
         WeatherService service = new WeatherService(client, metNoClient, 10_000);
@@ -35,7 +35,7 @@ class WeatherServiceTest {
     void getFuture_usesHourBucketCacheKey() {
         OpenMeteoClient client = mock(OpenMeteoClient.class);
         MetNoClient metNoClient = mock(MetNoClient.class);
-        WeatherSnapshot snapshot = new WeatherSnapshot(45.0, 61);
+        WeatherSnapshot snapshot = snapshot(45.0, 61);
         Instant firstTarget = Instant.parse("2026-04-20T10:05:00Z");
         Instant secondTarget = Instant.parse("2026-04-20T10:50:00Z");
 
@@ -55,7 +55,7 @@ class WeatherServiceTest {
     void getCurrent_reloadsAfterTtlExpires() throws InterruptedException {
         OpenMeteoClient client = mock(OpenMeteoClient.class);
         MetNoClient metNoClient = mock(MetNoClient.class);
-        WeatherSnapshot snapshot = new WeatherSnapshot(5.0, 0);
+        WeatherSnapshot snapshot = snapshot(5.0, 0);
         when(client.fetchCurrent(9.04, 38.77)).thenReturn(snapshot);
 
         WeatherService service = new WeatherService(client, metNoClient, 5);
@@ -71,7 +71,7 @@ class WeatherServiceTest {
     void getCurrent_fallsBackToMetNoOnFailure() {
         OpenMeteoClient openMeteo = mock(OpenMeteoClient.class);
         MetNoClient metNo = mock(MetNoClient.class);
-        WeatherSnapshot expectedSnapshot = new WeatherSnapshot(80.0, 61);
+        WeatherSnapshot expectedSnapshot = snapshot(80.0, 61);
 
         when(openMeteo.fetchCurrent(9.02, 38.75)).thenThrow(new WeatherProviderException("Open-Meteo outage"));
         when(metNo.fetchCurrent(9.02, 38.75)).thenReturn(expectedSnapshot);
@@ -89,7 +89,7 @@ class WeatherServiceTest {
     void getFuture_fallsBackToMetNoOnFailure() {
         OpenMeteoClient openMeteo = mock(OpenMeteoClient.class);
         MetNoClient metNo = mock(MetNoClient.class);
-        WeatherSnapshot expectedSnapshot = new WeatherSnapshot(80.0, 61);
+        WeatherSnapshot expectedSnapshot = snapshot(80.0, 61);
         Instant targetTime = Instant.parse("2026-04-20T10:05:00Z");
 
         when(openMeteo.fetchFutureNearest(9.02, 38.75, targetTime)).thenThrow(new WeatherProviderException("Open-Meteo outage"));
@@ -130,5 +130,18 @@ class WeatherServiceTest {
 
         assertThrows(IllegalStateException.class, () -> service.getFuture(9.02, 38.75, targetTime));
         verify(metNo, never()).fetchFutureNearest(9.02, 38.75, targetTime);
+    }
+
+    private static WeatherSnapshot snapshot(double precipitationProbability, int weatherCode) {
+        return new WeatherSnapshot(
+                9.02,
+                38.75,
+                Instant.EPOCH,
+                "Test",
+                24.0,
+                8.0,
+                precipitationProbability,
+                "icon-" + weatherCode
+        );
     }
 }

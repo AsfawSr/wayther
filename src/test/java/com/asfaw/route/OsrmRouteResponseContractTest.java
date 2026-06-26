@@ -24,7 +24,8 @@ class OsrmRouteResponseContractTest {
                         ),
                         612.5,
                         4200.0
-                ))
+                )),
+                List.of()
         );
 
         JsonNode json = new ObjectMapper().valueToTree(response);

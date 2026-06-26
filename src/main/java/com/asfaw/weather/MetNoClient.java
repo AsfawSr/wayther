@@ -57,7 +57,7 @@ public class MetNoClient implements WeatherClient {
             symbolCode = currentData.path("data").path("next_6_hours").path("summary").path("symbol_code").asText("");
         }
 
-        return mapMetNoSymbol(symbolCode);
+        return mapMetNoSymbol(latitude, longitude, symbolCode);
     }
 
     public WeatherSnapshot fetchFutureNearest(double latitude, double longitude, Instant targetTime) {
@@ -93,7 +93,7 @@ public class MetNoClient implements WeatherClient {
             symbolCode = bestData.path("data").path("next_6_hours").path("summary").path("symbol_code").asText("");
         }
 
-        return mapMetNoSymbol(symbolCode);
+        return mapMetNoSymbol(latitude, longitude, symbolCode);
     }
 
     private JsonNode fetchJson(URI uri) {
